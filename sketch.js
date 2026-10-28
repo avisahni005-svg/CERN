@@ -12,6 +12,7 @@ const S = {
   size: 10,
   radius: 100,
   stretch: 0.5,
+  chaos: 0.7,
   invert: true,
   flip: false,
   seed: 1,
@@ -191,10 +192,22 @@ function buildCircles() {
   const d = r * 2.15;
   const rowH = d * 0.866;
   const { x: rx, y: ry, w, h } = S.rect;
+  const rnd = mulberry32(S.seed);
   const out = [];
   for (let j = 0, y = ry; y < ry + h; j++, y += rowH) {
     for (let x = rx + (j % 2 ? d / 2 : 0); x < rx + w; x += d) {
-      if (inside(x, y)) out.push({ hx: x, hy: y, x, y, vx: 0, vy: 0, tx: x, ty: y });
+      if (!inside(x, y)) continue;
+      const hx = x + (rnd() - 0.5) * r * 0.3, hy = y + (rnd() - 0.5) * r * 0.3;
+      out.push({
+        hx, hy, x: hx, y: hy, vx: 0, vy: 0, tx: hx, ty: hy,
+        reach: 0.55 + rnd() * 0.9,              // how far from the mouse this circle still reacts
+        push: 0.5 + Math.pow(rnd(), 2.5) * 2.5, // most shove a little, a few get flung far
+        jit: (rnd() - 0.5) * 2.4,               // sideways deviation from "straight away"
+        k: 0.05 + rnd() * 0.13,                 // spring stiffness
+        damp: 0.6 + rnd() * 0.25,
+        rs: rnd(),                              // decides whether it stretches into a capsule
+        lag: 0.03 + rnd() * 0.08,               // how slowly a capsule's tail follows
+      });
     }
   }
   S.circles = out;
@@ -326,26 +339,31 @@ function target(p, push) {
   return [p.hx + ux * reach, p.hy + uy * reach];
 }
 
-function spring(p, tx, ty) {
-  p.vx = (p.vx + (tx - p.x) * 0.12) * 0.72;
-  p.vy = (p.vy + (ty - p.y) * 0.12) * 0.72;
+function spring(p, tx, ty, k = 0.12, damp = 0.72) {
+  p.vx = (p.vx + (tx - p.x) * k) * damp;
+  p.vy = (p.vy + (ty - p.y) * k) * damp;
   p.x += p.vx;
   p.y += p.vy;
 }
 
 function stepCircle(p) {
-  // circles leave the hover radius completely, so push by the full distance from the mouse
   let tx = p.hx, ty = p.hy;
   if (mouse.hit) {
     const dx = p.hx - mouse.x, dy = p.hy - mouse.y, d = Math.hypot(dx, dy);
-    if (d < S.radius) {
-      const ux = d > 0.001 ? dx / d : 1, uy = d > 0.001 ? dy / d : 0;
-      tx = mouse.x + ux * S.radius;
-      ty = mouse.y + uy * S.radius;
+    const R = S.radius * p.reach;
+    if (d < R) {
+      // slow noise field makes neighbours move alike but never identically, and keeps shifting
+      const n = noise(p.hx * 0.012, p.hy * 0.012, frameCount * 0.015);
+      const ang = Math.atan2(dy, dx) + (p.jit + (n - 0.5) * 3) * S.chaos;
+      const push = 1 + (p.push - 1) * S.chaos;
+      const dist = ((R - d) * push + 14 * p.rs * S.chaos) * (0.6 + n * 0.8);
+      tx = p.hx + Math.cos(ang) * dist;
+      ty = p.hy + Math.sin(ang) * dist;
     }
   }
-  spring(p, tx, ty);
-  const lag = 1 - S.stretch * 0.95; // the tail lags behind the head, stretching the circle into a capsule
+  spring(p, tx, ty, p.k, p.damp);
+  // a share of the circles (set by Stretch) drag a long tail behind them, the rest stay round
+  const lag = p.rs < S.stretch * 0.5 ? p.lag : 0.6;
   p.tx += (p.x - p.tx) * lag;
   p.ty += (p.y - p.ty) * lag;
 }
@@ -431,10 +449,7 @@ function buildGui() {
     if (S.img) layout();
   });
   $('invert').addEventListener('change', (e) => { S.invert = e.target.checked; });
-  $('reshuffle').addEventListener('click', () => { S.seed = (Math.random() * 1e9) | 0; if (S.mode === 'polygon') rebuild(); });
-
-  $('m-circles').addEventListener('click', () => setMode('circles'));
-  $('m-polygon').addEventListener('click', () => setMode('polygon'));
+  $('reshuffle').addEventListener('click', () => { S.seed = (Math.random() * 1e9) | 0; rebuild(); });
 
   const slider = (id, key, onChange) => {
     const el = $(id), out = el.parentElement.querySelector('output');
@@ -446,6 +461,7 @@ function buildGui() {
   slider('size', 'size', rebuild);
   slider('radius', 'radius');
   slider('stretch', 'stretch');
+  slider('chaos', 'chaos');
 
   setMode('circles');
 }
@@ -453,11 +469,7 @@ function buildGui() {
 function setMode(mode) {
   S.mode = mode;
   const $ = (id) => document.getElementById(id);
-  $('m-circles').classList.toggle('on', mode === 'circles');
-  $('m-polygon').classList.toggle('on', mode === 'polygon');
   $('size-label').textContent = mode === 'circles' ? 'Circle size' : 'Blob size';
-  $('stretch-row').style.display = mode === 'circles' ? '' : 'none';
-  $('reshuffle').style.display = mode === 'polygon' ? '' : 'none';
   buildColorRows();
   rebuild();
 }
