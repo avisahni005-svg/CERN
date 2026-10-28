@@ -207,6 +207,7 @@ function buildCircles() {
         damp: 0.6 + rnd() * 0.25,
         rs: rnd(),                              // decides whether it stretches into a capsule
         lag: 0.03 + rnd() * 0.08,               // how slowly a capsule's tail follows
+        nx: 0, ny: 0, nt: 0,                    // Noise button: random offset and its remaining frames
       });
     }
   }
@@ -361,11 +362,29 @@ function stepCircle(p) {
       ty = p.hy + Math.sin(ang) * dist;
     }
   }
+  if (p.nt > 0) {
+    const fade = Math.min(1, p.nt / 25);
+    tx += p.nx * fade;
+    ty += p.ny * fade;
+    p.nt--;
+  }
   spring(p, tx, ty, p.k, p.damp);
   // a share of the circles (set by Stretch) drag a long tail behind them, the rest stay round
-  const lag = p.rs < S.stretch * 0.5 ? p.lag : 0.6;
+  const lag = p.rs < S.stretch * 0.5 || (p.nt > 0 && p.rs < 0.4) ? p.lag : 0.6;
   p.tx += (p.x - p.tx) * lag;
   p.ty += (p.y - p.ty) * lag;
+}
+
+// Noise button: most circles get thrown a random distance in a random direction, then drift home.
+function noiseBurst() {
+  for (const p of S.circles) {
+    if (Math.random() < 0.25) continue;
+    const a = Math.random() * Math.PI * 2;
+    const m = (10 + Math.pow(Math.random(), 2) * 130) * (0.4 + S.chaos);
+    p.nx = Math.cos(a) * m;
+    p.ny = Math.sin(a) * m;
+    p.nt = 50 + Math.random() * 90;
+  }
 }
 
 function stepVertex(p) {
@@ -385,8 +404,10 @@ function circlePathD(p) {
   }
   const nx = (-dy / len) * r, ny = (dx / len) * r;
   const A = [p.tx + nx, p.ty + ny], B = [p.x + nx, p.y + ny], C = [p.x - nx, p.y - ny], D = [p.tx - nx, p.ty - ny];
+  // the extra "M..L.." is the line through the middle that appears once a circle stretches
   return `M${f(A[0])} ${f(A[1])}L${f(B[0])} ${f(B[1])}A${r} ${r} 0 0 0 ${f(C[0])} ${f(C[1])}` +
-    `L${f(D[0])} ${f(D[1])}A${r} ${r} 0 0 0 ${f(A[0])} ${f(A[1])}Z`;
+    `L${f(D[0])} ${f(D[1])}A${r} ${r} 0 0 0 ${f(A[0])} ${f(A[1])}Z` +
+    (len > r * 0.6 ? `M${f(p.tx)} ${f(p.ty)}L${f(p.x)} ${f(p.y)}` : '');
 }
 
 function loopD(loop) {
@@ -448,6 +469,7 @@ function buildGui() {
     S.flip = e.target.checked;
     if (S.img) layout();
   });
+  $('noise').addEventListener('click', noiseBurst);
   $('invert').addEventListener('change', (e) => { S.invert = e.target.checked; });
   $('reshuffle').addEventListener('click', () => { S.seed = (Math.random() * 1e9) | 0; rebuild(); });
 
