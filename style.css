@@ -15,7 +15,7 @@ button { background: #333; color: #eee; border: 1px solid #555; padding: 6px 8px
 button.on { background: #eee; color: #000; }
 .seg button:first-child { border-radius: 6px 0 0 6px; }
 .seg button:last-child { border-radius: 0 6px 6px 0; }
-#noise, #reshuffle { width: 100%; border-radius: 6px; margin-top: 8px; }
+#save, #noise, #reshuffle { width: 100%; border-radius: 6px; margin-top: 8px; }
 .slider { display: grid; grid-template-columns: 1fr auto; margin: 8px 0; }
 .slider input { grid-column: 1 / 3; width: 100%; }
 .slider output { color: #999; }

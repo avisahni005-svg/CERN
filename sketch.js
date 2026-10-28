@@ -441,9 +441,23 @@ function saveSvg() {
     `<feFlood flood-color="${c.svg}" result="c"/><feComposite in="c" in2="m" operator="in"/></filter></defs>` +
     `<rect width="100%" height="100%" fill="${c.bg}"/>${body}</svg>`;
 
+  deliverSvg(`soft-${S.mode}-${Date.now()}.svg`, svg);
+}
+
+// Inside Claude's artifact viewer plain downloads are blocked, so use its downloads capability when present.
+async function deliverSvg(filename, svg) {
+  try {
+    const dl = window.claude && (await window.claude.use('downloads'));
+    if (dl) {
+      await dl.save({ filename, data: svg });
+      return;
+    }
+  } catch (err) {
+    if (err && err.code === 'declined') return;
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
-  a.download = `soft-${S.mode}-${Date.now()}.svg`;
+  a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -462,6 +476,7 @@ function buildGui() {
     S.flip = e.target.checked;
     if (S.img) layout();
   });
+  $('save').addEventListener('click', (e) => { saveSvg(); e.target.blur(); });
   $('noise').addEventListener('click', (e) => {
     S.noiseOn = !S.noiseOn;
     e.target.classList.toggle('on', S.noiseOn);
