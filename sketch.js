@@ -364,13 +364,18 @@ function stepCircle(p) {
   }
   if (S.noiseOn) {
     // perpetual motion: every circle wanders through a slowly evolving noise field
-    const t = frameCount * 0.008, amp = 30 + 90 * S.chaos;
+    // a second, much larger noise field decides where it is busy and where it is almost still;
+    // it drifts too, so the busy and calm zones keep moving across the artwork
+    const t = frameCount * 0.008;
+    const zone = noise(p.hx * 0.0025 + 500, p.hy * 0.0025 + 500, frameCount * 0.003);
+    const busy = Math.pow(Math.min(1, Math.max(0, (zone - 0.4) * 3.5)), 1.4);
+    const amp = (6 + 130 * busy) * (0.4 + S.chaos);
     tx += (noise(p.hx * 0.006, p.hy * 0.006, t) - 0.5) * 2 * amp;
     ty += (noise(p.hx * 0.006 + 100, p.hy * 0.006 + 100, t) - 0.5) * 2 * amp;
   }
   spring(p, tx, ty, p.k, p.damp);
   // a share of the circles (set by Stretch) drag a long tail behind them, the rest stay round
-  const lag = p.rs < S.stretch * 0.5 || (S.noiseOn && p.rs < 0.4) ? p.lag : 0.6;
+  const lag = p.rs < S.stretch * 0.5 || (S.noiseOn && p.rs < 0.4 && Math.hypot(p.x - p.hx, p.y - p.hy) > 12) ? p.lag : 0.6;
   p.tx += (p.x - p.tx) * lag;
   p.ty += (p.y - p.ty) * lag;
 }
