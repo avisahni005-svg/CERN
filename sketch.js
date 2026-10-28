@@ -39,7 +39,7 @@ const COLOR_FIELDS = {
 const SAMPLE_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">' +
   '<text x="400" y="310" font-family="Georgia, serif" font-weight="bold" font-style="italic" ' +
-  'font-size="330" text-anchor="middle">soft</text></svg>';
+  'font-size="330" text-anchor="middle">cern</text></svg>';
 
 /* ---------- p5 ---------- */
 
