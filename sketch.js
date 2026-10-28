@@ -13,6 +13,7 @@ const S = {
   radius: 100,
   stretch: 0.5,
   chaos: 0.7,
+  noiseOn: false,
   invert: true,
   flip: false,
   seed: 1,
@@ -207,7 +208,6 @@ function buildCircles() {
         damp: 0.6 + rnd() * 0.25,
         rs: rnd(),                              // decides whether it stretches into a capsule
         lag: 0.03 + rnd() * 0.08,               // how slowly a capsule's tail follows
-        nx: 0, ny: 0, nt: 0,                    // Noise button: random offset and its remaining frames
       });
     }
   }
@@ -362,29 +362,17 @@ function stepCircle(p) {
       ty = p.hy + Math.sin(ang) * dist;
     }
   }
-  if (p.nt > 0) {
-    const fade = Math.min(1, p.nt / 25);
-    tx += p.nx * fade;
-    ty += p.ny * fade;
-    p.nt--;
+  if (S.noiseOn) {
+    // perpetual motion: every circle wanders through a slowly evolving noise field
+    const t = frameCount * 0.008, amp = 30 + 90 * S.chaos;
+    tx += (noise(p.hx * 0.006, p.hy * 0.006, t) - 0.5) * 2 * amp;
+    ty += (noise(p.hx * 0.006 + 100, p.hy * 0.006 + 100, t) - 0.5) * 2 * amp;
   }
   spring(p, tx, ty, p.k, p.damp);
   // a share of the circles (set by Stretch) drag a long tail behind them, the rest stay round
-  const lag = p.rs < S.stretch * 0.5 || (p.nt > 0 && p.rs < 0.4) ? p.lag : 0.6;
+  const lag = p.rs < S.stretch * 0.5 || (S.noiseOn && p.rs < 0.4) ? p.lag : 0.6;
   p.tx += (p.x - p.tx) * lag;
   p.ty += (p.y - p.ty) * lag;
-}
-
-// Noise button: most circles get thrown a random distance in a random direction, then drift home.
-function noiseBurst() {
-  for (const p of S.circles) {
-    if (Math.random() < 0.25) continue;
-    const a = Math.random() * Math.PI * 2;
-    const m = (10 + Math.pow(Math.random(), 2) * 130) * (0.4 + S.chaos);
-    p.nx = Math.cos(a) * m;
-    p.ny = Math.sin(a) * m;
-    p.nt = 50 + Math.random() * 90;
-  }
 }
 
 function stepVertex(p) {
@@ -469,7 +457,12 @@ function buildGui() {
     S.flip = e.target.checked;
     if (S.img) layout();
   });
-  $('noise').addEventListener('click', noiseBurst);
+  $('noise').addEventListener('click', (e) => {
+    S.noiseOn = !S.noiseOn;
+    e.target.classList.toggle('on', S.noiseOn);
+    e.target.textContent = S.noiseOn ? 'Noise: on' : 'Noise';
+    e.target.blur();
+  });
   $('invert').addEventListener('change', (e) => { S.invert = e.target.checked; });
   $('reshuffle').addEventListener('click', () => { S.seed = (Math.random() * 1e9) | 0; rebuild(); });
 
