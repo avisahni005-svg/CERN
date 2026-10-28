@@ -29,7 +29,7 @@ const S = {
   blob: [],
   lines: [],
 };
-const mouse = { x: 0, y: 0, on: false };
+const mouse = { x: 0, y: 0, on: false, hit: false };
 
 const COLOR_FIELDS = {
   circles: [['bg', 'Background'], ['svg', 'SVG'], ['fill', 'Circles']],
@@ -59,10 +59,12 @@ function windowResized() {
 function draw() {
   const ctx = drawingContext;
   const c = S.col[S.mode];
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const pd = pixelDensity();
+  ctx.setTransform(pd, 0, 0, pd, 0, 0);
   ctx.fillStyle = c.bg;
   ctx.fillRect(0, 0, width, height);
   if (!S.rect) return;
+  mouse.hit = mouse.on && inside(mouse.x, mouse.y); // circles only react while the cursor is over the artwork
 
   if (S.mode === 'circles') {
     drawGlyph(ctx);
@@ -123,12 +125,12 @@ function loadSvg(text) {
 function layout() {
   const iw = S.img.naturalWidth || 400;
   const ih = S.img.naturalHeight || 400;
-  const availW = width - PANEL_W - 60;
+  const availW = Math.max(120, width - PANEL_W - 60);
   const availH = height - 60;
   const s = Math.min(availW / iw, availH / ih);
   const w = Math.max(1, Math.round(iw * s));
   const h = Math.max(1, Math.round(ih * s));
-  S.rect = { x: Math.round(PANEL_W + 30 + (availW - w) / 2), y: Math.round((height - h) / 2), w, h };
+  S.rect = { x: Math.round(30 + (availW - w) / 2), y: Math.round((height - h) / 2), w, h };
 
   const off = document.createElement('canvas');
   off.width = w;
@@ -316,7 +318,7 @@ function dp(pts, tol) {
 
 // Spring a point towards its home; if the mouse is inside the hover radius, push it outwards.
 function target(p, push) {
-  if (!mouse.on) return [p.hx, p.hy];
+  if (!mouse.hit) return [p.hx, p.hy];
   const dx = p.hx - mouse.x, dy = p.hy - mouse.y, d = Math.hypot(dx, dy);
   if (d >= S.radius) return [p.hx, p.hy];
   const ux = d > 0.001 ? dx / d : 1, uy = d > 0.001 ? dy / d : 0;
@@ -334,7 +336,7 @@ function spring(p, tx, ty) {
 function stepCircle(p) {
   // circles leave the hover radius completely, so push by the full distance from the mouse
   let tx = p.hx, ty = p.hy;
-  if (mouse.on) {
+  if (mouse.hit) {
     const dx = p.hx - mouse.x, dy = p.hy - mouse.y, d = Math.hypot(dx, dy);
     if (d < S.radius) {
       const ux = d > 0.001 ? dx / d : 1, uy = d > 0.001 ? dy / d : 0;
