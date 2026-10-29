@@ -13,6 +13,8 @@ const S = {
   radius: 100,
   stretch: 0.5,
   chaos: 0.7,
+  scale: 1,
+  density: 1,
   noiseOn: false,
   invert: true,
   flip: false,
@@ -129,7 +131,7 @@ function layout() {
   const ih = S.img.naturalHeight || 400;
   const availW = Math.max(120, width - PANEL_W - 60);
   const availH = height - 60;
-  const s = Math.min(availW / iw, availH / ih);
+  const s = Math.min(availW / iw, availH / ih) * S.scale;
   const w = Math.max(1, Math.round(iw * s));
   const h = Math.max(1, Math.round(ih * s));
   S.rect = { x: Math.round(30 + (availW - w) / 2), y: Math.round((height - h) / 2), w, h };
@@ -190,7 +192,7 @@ function rebuild() {
 
 function buildCircles() {
   const r = S.size;
-  const d = r * 2.15;
+  const d = (r * 2.15) / S.density; // spacing shrinks as density rises, circle size stays put
   const rowH = d * 0.866;
   const { x: rx, y: ry, w, h } = S.rect;
   const rnd = mulberry32(S.seed);
@@ -497,6 +499,8 @@ function buildGui() {
   slider('radius', 'radius');
   slider('stretch', 'stretch');
   slider('chaos', 'chaos');
+  slider('scale', 'scale', () => { if (S.img) layout(); });
+  slider('density', 'density', rebuild);
 
   setMode('circles');
 }

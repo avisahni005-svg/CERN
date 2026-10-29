@@ -45,6 +45,8 @@ kbd { background: #333; border-radius: 3px; padding: 0 4px; }
 
   <div class="slider"><span>Line thickness</span><input type="range" id="thick" min="0.5" max="14" step="0.5" value="2"><output></output></div>
   <div class="slider"><span id="size-label">Circle size</span><input type="range" id="size" min="3" max="40" step="1" value="10"><output></output></div>
+  <div class="slider"><span>Graphic scale</span><input type="range" id="scale" min="0.2" max="1.6" step="0.05" value="1"><output></output></div>
+  <div class="slider"><span>Density</span><input type="range" id="density" min="0.4" max="2.5" step="0.05" value="1"><output></output></div>
   <div class="slider"><span>Hover radius</span><input type="range" id="radius" min="20" max="300" step="5" value="100"><output></output></div>
   <div class="slider"><span>Randomness</span><input type="range" id="chaos" min="0" max="1" step="0.05" value="0.7"><output></output></div>
   <div class="slider" id="stretch-row"><span>Stretch</span><input type="range" id="stretch" min="0" max="1" step="0.05" value="0.5"><output></output></div>
@@ -74,6 +76,8 @@ const S = {
   radius: 100,
   stretch: 0.5,
   chaos: 0.7,
+  scale: 1,
+  density: 1,
   noiseOn: false,
   invert: true,
   flip: false,
@@ -190,7 +194,7 @@ function layout() {
   const ih = S.img.naturalHeight || 400;
   const availW = Math.max(120, width - PANEL_W - 60);
   const availH = height - 60;
-  const s = Math.min(availW / iw, availH / ih);
+  const s = Math.min(availW / iw, availH / ih) * S.scale;
   const w = Math.max(1, Math.round(iw * s));
   const h = Math.max(1, Math.round(ih * s));
   S.rect = { x: Math.round(30 + (availW - w) / 2), y: Math.round((height - h) / 2), w, h };
@@ -251,7 +255,7 @@ function rebuild() {
 
 function buildCircles() {
   const r = S.size;
-  const d = r * 2.15;
+  const d = (r * 2.15) / S.density; // spacing shrinks as density rises, circle size stays put
   const rowH = d * 0.866;
   const { x: rx, y: ry, w, h } = S.rect;
   const rnd = mulberry32(S.seed);
@@ -558,6 +562,8 @@ function buildGui() {
   slider('radius', 'radius');
   slider('stretch', 'stretch');
   slider('chaos', 'chaos');
+  slider('scale', 'scale', () => { if (S.img) layout(); });
+  slider('density', 'density', rebuild);
 
   setMode('circles');
 }
