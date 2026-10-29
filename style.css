@@ -24,3 +24,7 @@ button.on { background: #eee; color: #000; }
 .color input[type=text] { width: 100%; box-sizing: border-box; background: #111; color: #eee; border: 1px solid #444; padding: 3px 4px; font-family: monospace; }
 .hint { color: #888; margin: 10px 0 0; }
 kbd { background: #333; border-radius: 3px; padding: 0 4px; }
+#empty { display: none; position: fixed; inset: 0; z-index: 1; place-items: center; color: #777; font-size: 11px; letter-spacing: .08em; cursor: pointer; }
+#empty:hover { color: #ccc; }
+body.empty #empty { display: grid; }
+body.empty #panel { display: none; }

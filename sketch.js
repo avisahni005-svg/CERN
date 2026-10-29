@@ -40,11 +40,6 @@ const COLOR_FIELDS = {
   polygon: [['bg', 'Background'], ['fill', 'Blob'], ['svg', 'SVG'], ['line', 'Linework']],
 };
 
-const SAMPLE_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">' +
-  '<text x="400" y="310" font-family="Georgia, serif" font-weight="bold" font-style="italic" ' +
-  'font-size="330" text-anchor="middle">cern</text></svg>';
-
 /* ---------- p5 ---------- */
 
 function setup() {
@@ -52,7 +47,13 @@ function setup() {
   c.elt.addEventListener('pointermove', (e) => { mouse.x = e.offsetX; mouse.y = e.offsetY; mouse.on = true; });
   c.elt.addEventListener('pointerleave', () => { mouse.on = false; });
   buildGui();
-  loadSvg(SAMPLE_SVG);
+  // drag an SVG anywhere on the page as an alternative to the "add file" label
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) file.text().then(loadSvg);
+  });
 }
 
 function windowResized() {
@@ -119,6 +120,7 @@ function loadSvg(text) {
     URL.revokeObjectURL(url);
     S.svgText = text;
     S.img = img;
+    document.body.classList.remove('empty');
     layout();
   };
   img.onerror = () => alert('Could not read that SVG.');
@@ -472,6 +474,7 @@ function buildGui() {
   $('file').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) file.text().then(loadSvg);
+    e.target.value = '';
     e.target.blur();
   });
   $('flip').addEventListener('change', (e) => {
