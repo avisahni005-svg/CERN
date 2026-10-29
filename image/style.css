@@ -1,0 +1,30 @@
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font: 13px/1.3 system-ui, sans-serif; }
+canvas { display: block; }
+#panel {
+  position: fixed; top: 12px; right: 12px; width: 236px; padding: 14px;
+  background: rgba(24,24,24,.92); color: #eee; border-radius: 10px; z-index: 2;
+  max-height: calc(100% - 48px); overflow: auto;
+}
+h1 { font-size: 14px; margin: 0 0 10px; letter-spacing: .04em; text-transform: uppercase; }
+.file { display: block; margin-bottom: 8px; }
+.file input { display: block; margin-top: 4px; width: 100%; color: #aaa; }
+.row { display: block; margin: 6px 0; }
+.seg { display: flex; margin: 10px 0; }
+.seg button { flex: 1; }
+button { background: #333; color: #eee; border: 1px solid #555; padding: 6px 8px; cursor: pointer; }
+button.on { background: #eee; color: #000; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+#save, #noise, #reshuffle { width: 100%; border-radius: 6px; margin-top: 8px; }
+.slider { display: grid; grid-template-columns: 1fr auto; margin: 8px 0; }
+.slider input { grid-column: 1 / 3; width: 100%; }
+.slider output { color: #999; }
+.color { display: grid; grid-template-columns: 1fr 28px 74px; gap: 6px; align-items: center; margin: 5px 0; }
+.color input[type=color] { width: 28px; height: 22px; padding: 0; border: 0; background: none; }
+.color input[type=text] { width: 100%; box-sizing: border-box; background: #111; color: #eee; border: 1px solid #444; padding: 3px 4px; font-family: monospace; }
+.hint { color: #888; margin: 10px 0 0; }
+kbd { background: #333; border-radius: 3px; padding: 0 4px; }
+#empty { display: none; position: fixed; inset: 0; z-index: 1; place-items: center; color: #777; font-size: 11px; letter-spacing: .08em; cursor: pointer; }
+#empty:hover { color: #ccc; }
+body.empty #empty { display: grid; }
+body.empty #panel { display: none; }

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CERN Image Hover</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+</head>
+<body class="empty">
+<label id="empty" for="file">add image</label>
+<aside id="panel">
+  <h1>Image Hover</h1>
+
+  <label class="file">Upload image
+    <input type="file" id="file" accept="image/*">
+  </label>
+
+  <div class="slider"><span>Line thickness</span><input type="range" id="thick" min="0.5" max="14" step="0.5" value="2"><output></output></div>
+  <div class="slider"><span>Circle size</span><input type="range" id="size" min="3" max="40" step="1" value="10"><output></output></div>
+  <div class="slider"><span>Density</span><input type="range" id="density" min="0.02" max="1" step="0.01" value="0.2"><output></output></div>
+  <div class="slider"><span>Graphic scale</span><input type="range" id="scale" min="0.2" max="1.6" step="0.05" value="1"><output></output></div>
+  <div class="slider"><span>Image opacity</span><input type="range" id="imgop" min="0" max="1" step="0.05" value="1"><output></output></div>
+  <div class="slider"><span>Hover radius</span><input type="range" id="radius" min="20" max="300" step="5" value="100"><output></output></div>
+  <div class="slider"><span>Randomness</span><input type="range" id="chaos" min="0" max="1" step="0.05" value="0.7"><output></output></div>
+  <div class="slider"><span>Stretch</span><input type="range" id="stretch" min="0" max="1" step="0.05" value="0.5"><output></output></div>
+
+  <label class="row"><input type="checkbox" id="invert" checked> Invert where shapes overlap</label>
+
+  <div id="colors"></div>
+
+  <button id="save">Save SVG (S)</button>
+  <button id="noise">Noise</button>
+  <button id="reshuffle">Reshuffle circles</button>
+  <p class="hint">Press <kbd>S</kbd> to save the frame as an SVG.</p>
+</aside>
+<script src="sketch.js"></script>
+</body>
+</html>
