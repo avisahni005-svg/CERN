@@ -48,7 +48,7 @@ def main():
     missing = [s for s, d in images.items() if not d]
     entries = ',\n'.join(f'"{s}": "{d}"' for s, d in images.items() if d)
 
-    js = ''.join(read(f) + '\n' for f in ['data.js', 'hands.js', 'stack.js', 'scroll.js', 'collide.js', 'main.js'])
+    js = ''.join(read(f) + '\n' for f in ['data.js', 'hands.js', 'stack.js', 'main.js'])
     scripts = re.search(r'<script src="data.js"></script>.*?<script src="main.js"></script>', html, re.S).group(0)
     html = html.replace(scripts, '<script>window.IMAGE_DATA = {\n' + entries + '\n};</script>\n<script>\n' + js + '</script>')
     with open(OUT, 'w', encoding='utf-8') as f:

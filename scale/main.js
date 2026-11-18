@@ -1,5 +1,5 @@
 // Cosmic scale: shared state, images, text, input, HUD and the frame loop.
-// The three modes live in stack.js, scroll.js and collide.js.
+// The zoom view lives in stack.js (scroll.js and collide.js are paused, not loaded).
 
 const ASPECT = 1.27;            // every image on the poster is cropped to this width : height
 const IMAGE_DIR = window.IMAGE_DIR || 'images/';
@@ -365,10 +365,7 @@ function bindInput() {
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
     const k = e.key.toLowerCase();
-    if (k === '1') setMode('stack');
-    else if (k === '2') setMode('scroll');
-    else if (k === '3') setMode('collide');
-    else if (k === 'c') App.preview = !App.preview;
+    if (k === 'c') App.preview = !App.preview;
     else if (k === 'f') { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
     else if (App.mode.key && App.mode.key(e.key)) e.preventDefault();
     else if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { App.tTarget = clamp(Math.round(App.tTarget) + 1, 0, N - 1); e.preventDefault(); }
@@ -393,7 +390,8 @@ function bindInput() {
 
 function init() {
   App.ctx = document.getElementById('c').getContext('2d');
-  App.modes = { stack: StackMode, scroll: ScrollMode, collide: CollideMode };
+  // scroll.js and collide.js are paused for now: add them back here (and in index.html / build.py) to restore
+  App.modes = { stack: StackMode };
   loadImages();
   bindInput();
   resize();
