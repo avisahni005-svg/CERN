@@ -75,9 +75,12 @@ function loadImages() {
   ITEMS.forEach((item) => {
     item.big = placeholder(item, 480);
     item.small = placeholder(item, 240);
-    let k = 0;
     const img = new Image();
     img.onload = () => setImage(item, img);
+    // the single-file build carries every photo inside the page
+    const embedded = window.IMAGE_DATA && window.IMAGE_DATA[item.slug];
+    if (embedded) { img.src = embedded; return; }
+    let k = 0;
     img.onerror = () => { if (++k < EXTS.length) img.src = IMAGE_DIR + item.slug + '.' + EXTS[k]; };
     img.src = IMAGE_DIR + item.slug + '.' + EXTS[0];
   });

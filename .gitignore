@@ -3,3 +3,5 @@ node_modules/
 scale/fonts/*.otf
 scale/fonts/*.woff
 scale/fonts/*.woff2
+# single-file build embeds the licensed font
+cosmic-scale.html
