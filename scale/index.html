@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmic Scale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="intro">
+<canvas id="c"></canvas>
+
+<nav id="nav">
+  <button data-mode="stack"><b>01</b> STACK</button>
+  <button data-mode="scroll"><b>02</b> SCROLL</button>
+  <button data-mode="collide"><b>03</b> COLLIDE</button>
+  <label class="files">+ IMAGES<input type="file" id="files" accept="image/*" multiple></label>
+</nav>
+
+<p id="hint"></p>
+<p id="status">camera off</p>
+<p id="flash"></p>
+<div id="drop">DROP IMAGES: NAMED LIKE <i>higgs-boson.jpg</i>, <i>Higgs Boson.png</i> OR <i>01.jpg</i></div>
+
+<div id="intro">
+  <h1>LOOK WITHIN<br>TO GO BEYOND</h1>
+  <p>55 OBJECTS · 10<sup>−9</sup> TO 10<sup>32</sup> NM</p>
+  <div class="buttons">
+    <button id="cam" type="button">START CAMERA</button>
+    <button id="nocam" type="button">MOUSE ONLY</button>
+  </div>
+  <p class="keys">1 · 2 · 3 SWITCH MODE &nbsp;&nbsp; C CAMERA PREVIEW &nbsp;&nbsp; F FULLSCREEN</p>
+</div>
+
+<script src="data.js"></script>
+<script src="hands.js"></script>
+<script src="stack.js"></script>
+<script src="scroll.js"></script>
+<script src="collide.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

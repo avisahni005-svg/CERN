@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmic Scale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+:root { --ink: #f3f0e8; --dim: rgba(243, 240, 232, 0.5); --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overflow: hidden; font: 12px/1.3 var(--mono); }
+canvas { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+button, label.files { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; letter-spacing: .06em; }
+
+#nav { position: fixed; top: 16px; left: 18px; display: flex; gap: 18px; flex-wrap: wrap; z-index: 2; }
+#nav button, #nav label { color: var(--dim); transition: color .2s; }
+#nav button b { font-weight: 400; margin-right: 4px; }
+#nav button:hover, #nav label:hover, #nav button.on { color: var(--ink); }
+#nav button.on { text-decoration: underline; text-underline-offset: 4px; }
+#nav input { display: none; }
+
+#hint, #status, #flash { position: fixed; margin: 0; pointer-events: none; letter-spacing: .06em; z-index: 2; }
+#hint { bottom: 18px; left: 50%; transform: translateX(-50%); color: var(--dim); font-size: 11px; white-space: nowrap; }
+#status { top: 18px; right: 70px; color: var(--dim); font-size: 10px; text-transform: uppercase; }
+#flash { top: 44px; left: 18px; color: #ffd84a; opacity: 0; transition: opacity .3s; text-transform: uppercase; }
+#flash.on { opacity: 1; }
+@media (max-width: 760px) {
+  #hint { white-space: normal; width: calc(100% - 32px); text-align: center; }
+  #status { top: auto; bottom: 48px; right: 16px; }
+}
+
+#drop { position: fixed; inset: 12px; border: 1px dashed var(--ink); display: none; place-items: center; z-index: 5; background: rgba(0,0,0,.7); letter-spacing: .06em; pointer-events: none; text-align: center; padding: 16px; }
+body.dropping #drop { display: grid; }
+
+#intro { position: fixed; inset: 0; z-index: 4; display: none; place-content: center; justify-items: center; text-align: center; background: rgba(0,0,0,.82); padding: 16px; }
+body.intro #intro { display: grid; }
+body.intro #nav, body.intro #hint { visibility: hidden; }
+#intro h1 { font-weight: 400; font-size: clamp(28px, 6vw, 64px); line-height: .95; margin: 0 0 18px; letter-spacing: .02em; }
+#intro p { color: var(--dim); margin: 0; letter-spacing: .06em; }
+#intro .buttons { display: flex; gap: 28px; margin: 34px 0 26px; }
+#intro .buttons button { border: 1px solid var(--ink); padding: 10px 18px; }
+#intro .buttons button:hover { background: var(--ink); color: #000; }
+#intro .keys { font-size: 10px; }
+</style>
+</head>
+<body class="intro">
+<canvas id="c"></canvas>
+
+<nav id="nav">
+  <button data-mode="stack"><b>01</b> STACK</button>
+  <button data-mode="scroll"><b>02</b> SCROLL</button>
+  <button data-mode="collide"><b>03</b> COLLIDE</button>
+  <label class="files">+ IMAGES<input type="file" id="files" accept="image/*" multiple></label>
+</nav>
+
+<p id="hint"></p>
+<p id="status">camera off</p>
+<p id="flash"></p>
+<div id="drop">DROP IMAGES: NAMED LIKE <i>higgs-boson.jpg</i>, <i>Higgs Boson.png</i> OR <i>01.jpg</i></div>
+
+<div id="intro">
+  <h1>LOOK WITHIN<br>TO GO BEYOND</h1>
+  <p>55 OBJECTS · 10<sup>−9</sup> TO 10<sup>32</sup> NM</p>
+  <div class="buttons">
+    <button id="cam" type="button">START CAMERA</button>
+    <button id="nocam" type="button">MOUSE ONLY</button>
+  </div>
+  <p class="keys">1 · 2 · 3 SWITCH MODE &nbsp;&nbsp; C CAMERA PREVIEW &nbsp;&nbsp; F FULLSCREEN</p>
+</div>
+
+<script>window.IMAGE_DIR = 'scale/images/';</script>
+<script>
+// The 55 objects on the poster, smallest to largest, in poster order (rows of 1, 2, 3 … 10).
+// [image file name (without extension), label, size in nm as printed on the poster]
+// "10^x" is drawn as a superscript.
+const ITEM_DATA = [
+  ['higgs-boson', 'Higgs boson', '1.6 × 10^-9'],
+  ['proton', 'Proton', '1.7 × 10^-6'],
+  ['hydrogen-atom', 'Hydrogen atom', '0.106'],
+  ['gold-atom', 'Gold atom', '0.29'],
+  ['buckyball', 'Buckyball', '0.7'],
+  ['dna-helix', 'DNA helix', '2'],
+  ['actin-filament', 'Actin filament', '7'],
+  ['ibm-quantum-corral', 'IBM quantum corral', '14'],
+  ['ribosome', 'Ribosome', '20'],
+  ['poliovirus', 'Poliovirus', '30'],
+  ['adenovirus', 'Adenovirus', '90'],
+  ['hiv', 'HIV', '120'],
+  ['bacteriophage-t4', 'Bacteriophage T4', '200'],
+  ['mimivirus', 'Mimivirus', '750'],
+  ['platelet', 'Platelet', '2,500'],
+  ['yeast-cell', 'Yeast cell', '5,000'],
+  ['red-blood-cell', 'Red blood cell', '7,500'],
+  ['ragweed-pollen-grain', 'Ragweed pollen grain', '20,000'],
+  ['human-hair', 'Human hair', '75,000'],
+  ['human-egg-cell', 'Human egg cell', '120,000'],
+  ['dust-mite', 'Dust mite', '250,000'],
+  ['tardigrade', 'Tardigrade', '500,000'],
+  ['fruit-fly', 'Fruit fly', '3,000,000'],
+  ['ant', 'Ant', '5,000,000'],
+  ['ladybug', 'Ladybug', '7,000,000'],
+  ['honeybee', 'Honeybee', '15,000,000'],
+  ['golf-ball', 'Golf ball', '42,670,000'],
+  ['apple', 'Apple', '80,000,000'],
+  ['human-hand', 'Human hand', '190,000,000'],
+  ['basketball', 'Basketball', '240,000,000'],
+  ['bicycle', 'Bicycle', '1.75 × 10^9'],
+  ['car', 'Car', '4.5 × 10^9'],
+  ['giraffe', 'Giraffe', '5.5 × 10^9'],
+  ['blue-whale', 'Blue whale', '3.0 × 10^10'],
+  ['statue-of-liberty', 'Statue of Liberty', '9.3 × 10^10'],
+  ['great-pyramid-of-giza', 'Great Pyramid of Giza', '1.39 × 10^11'],
+  ['eiffel-tower', 'Eiffel Tower', '3.3 × 10^11'],
+  ['burj-khalifa', 'Burj Khalifa', '8.28 × 10^11'],
+  ['golden-gate-bridge', 'Golden Gate Bridge', '2.74 × 10^12'],
+  ['mount-everest', 'Mount Everest', '8.85 × 10^12'],
+  ['grand-canyon', 'Grand Canyon', '4.46 × 10^14'],
+  ['great-barrier-reef', 'Great Barrier Reef', '2.3 × 10^15'],
+  ['the-moon', 'The Moon', '3.47 × 10^15'],
+  ['asia', 'Asia', '9.6 × 10^15'],
+  ['earth', 'Earth', '1.27 × 10^16'],
+  ['jupiter', 'Jupiter', '1.40 × 10^17'],
+  ['saturn-rings', 'Saturn rings', '2.7 × 10^17'],
+  ['the-sun', 'The Sun', '1.39 × 10^18'],
+  ['betelgeuse', 'Betelgeuse', '1.06 × 10^21'],
+  ['m87-black-hole', 'M87* black hole', '3.8 × 10^22'],
+  ['pillars-of-creation', 'Pillars of Creation', '3.8 × 10^25'],
+  ['orion-nebula', 'Orion Nebula', '2.3 × 10^26'],
+  ['large-magellanic-cloud', 'Large Magellanic Cloud', '3.0 × 10^29'],
+  ['andromeda-galaxy', 'Andromeda galaxy', '1.4 × 10^30'],
+  ['coma-cluster', 'Coma cluster of galaxies', '1.9 × 10^32'],
+];
+
+function parseSize(s) {
+  const m = s.match(/^([\d.]+) × 10\^(-?\d+)$/);
+  return m ? parseFloat(m[1]) * Math.pow(10, +m[2]) : parseFloat(s.replace(/,/g, ''));
+}
+
+const ITEMS = ITEM_DATA.map(([slug, name, size], i) => {
+  const value = parseSize(size);
+  return { i, slug, name: name.toUpperCase(), size, value, log: Math.log10(value), small: null, big: null, real: false };
+});
+const N = ITEMS.length;
+
+// Camera + MediaPipe hand tracking. Exposes Hands.list: up to two hands, sorted left to right on screen,
+// each { tip: {x, y} (index fingertip, 0..1 of the mirrored camera frame), pointing, lm: [21 points] }.
+
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+const Hands = {
+  video: null,
+  model: null,
+  lastTime: -1,
+  aspect: 16 / 9,
+  list: [],
+  status: 'camera off',
+  onStatus: null,
+
+  setStatus(t) {
+    this.status = t;
+    if (this.onStatus) this.onStatus(t);
+  },
+
+  async start() {
+    this.setStatus('asking for camera…');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' }, audio: false });
+      const v = document.createElement('video');
+      v.playsInline = true;
+      v.muted = true;
+      v.srcObject = stream;
+      await v.play();
+      this.video = v;
+    } catch (err) {
+      this.setStatus('no camera (' + (err && err.name ? err.name : 'error') + '): mouse only');
+      return;
+    }
+    this.setStatus('loading hand tracking…');
+    try {
+      const { HandLandmarker, FilesetResolver } = await import(MP + '/vision_bundle.mjs');
+      const fileset = await FilesetResolver.forVisionTasks(MP + '/wasm');
+      const make = (delegate) => HandLandmarker.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: MODEL, delegate },
+        runningMode: 'VIDEO',
+        numHands: 2,
+        minHandDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
+      try { this.model = await make('GPU'); } catch (e) { this.model = await make('CPU'); }
+      this.setStatus('hands ready');
+    } catch (err) {
+      this.setStatus('hand tracking failed to load: mouse only');
+    }
+  },
+
+  // call once per animation frame; only does work when the camera has a new frame
+  update() {
+    const v = this.video;
+    if (!this.model || !v || v.readyState < 2) { this.list = []; return; }
+    if (v.currentTime === this.lastTime) return;
+    this.lastTime = v.currentTime;
+    const res = this.model.detectForVideo(v, performance.now());
+    const asp = (v.videoWidth / v.videoHeight) || 16 / 9;
+    this.aspect = asp;
+
+    const next = (res.landmarks || []).map((raw) => {
+      const lm = raw.map((p) => ({ x: 1 - p.x, y: p.y })); // mirrored, like a selfie view
+      const d = (a, b) => Math.hypot((lm[a].x - lm[b].x) * asp, lm[a].y - lm[b].y);
+      const extended = (tip, pip) => d(tip, 0) > d(pip, 0) * 1.12;
+      const curled = (tip, pip) => d(tip, 0) < d(pip, 0) * 1.1;
+      const others = [[12, 10], [16, 14], [20, 18]].filter(([t, p]) => curled(t, p)).length;
+      return { tip: { x: lm[8].x, y: lm[8].y }, rawPointing: extended(8, 6) && others >= 2, lm };
+    });
+    next.sort((a, b) => a.tip.x - b.tip.x);
+
+    const same = next.length === this.list.length;
+    next.forEach((h, i) => {
+      const o = same ? this.list[i] : null;
+      if (o) {
+        // light smoothing against jittery detections
+        h.tip.x = o.tip.x + (h.tip.x - o.tip.x) * 0.6;
+        h.tip.y = o.tip.y + (h.tip.y - o.tip.y) * 0.6;
+        h.score = Math.max(0, Math.min(4, o.score + (h.rawPointing ? 1 : -1)));
+      } else {
+        h.score = h.rawPointing ? 2 : 0;
+      }
+      h.pointing = h.score >= 2; // needs a couple of frames to switch, so a single misread doesn't flicker
+    });
+    this.list = next;
+  },
+
+  // distance between the two index fingertips as a fraction of the frame width (null without two hands)
+  spread() {
+    if (this.list.length < 2) return null;
+    const [a, b] = this.list;
+    return Math.hypot(a.tip.x - b.tip.x, (a.tip.y - b.tip.y) / this.aspect);
+  },
+
+  pointer() {
+    return this.list.find((h) => h.pointing) || null;
+  },
+};
+
+// Mode 1, stack: the objects are a deck of cards receding into depth, the next bigger ones peeking out above.
+// Spreading the index fingers pulls bigger things forward; bringing them together brings smaller things back.
+
+const StackMode = {
+  spread: true,
+  hintHands: 'BOTH INDEX FINGERS UP · CLOSE TOGETHER = SMALLER · FAR APART = BIGGER',
+  hintMouse: 'SCROLL, DRAG OR ↑ ↓ TO MOVE THROUGH SCALE',
+
+  update() {},
+
+  drag(dx, dy) { App.tTarget = clamp(App.tTarget - dy * 0.02, 0, N - 1); },
+  release() { App.tTarget = Math.round(App.tTarget); },
+
+  draw(ctx) {
+    const { W, H } = App;
+    const t = App.tShown;
+    const narrow = W < 760;
+    const ch = Math.min(H * (narrow ? 0.36 : 0.44), (W * (narrow ? 0.72 : 0.46)) / ASPECT);
+    const cw = ch * ASPECT;
+    const cx = narrow ? 16 + cw / 2 : Math.min(W * 0.38, W - cw / 2 - 360);
+    const cy = narrow ? H * 0.58 : H * 0.63;
+    const bigPx = clamp(Math.round(cw * 0.1), 16, 60);
+    const smallPx = 11;
+
+    const cards = [];
+    for (let i = 0; i < N; i++) {
+      const k = i - t;
+      if (k > -1 && k < 8.5) cards.push({ item: ITEMS[i], k });
+    }
+    cards.sort((a, b) => b.k - a.k); // farthest first
+    const labels = []; // drawn after every card, so a card rushing past never covers the arriving label
+
+    cards.forEach(({ item, k }) => {
+      let sc, y, alpha, dim;
+      if (k >= 0) {
+        sc = Math.pow(0.84, k);
+        y = cy - k * ch * 0.16;
+        alpha = clamp(1 - (k - 5) / 3, 0, 1);
+        dim = Math.min(0.78, k * 0.14);
+      } else {
+        // smaller object leaving: rushes past the viewer and fades
+        const q = -k;
+        sc = 1 + q * 0.7 + q * q * 2.4;
+        y = cy + q * ch * 0.8;
+        alpha = clamp(1 - q * 1.3, 0, 1);
+        dim = 0;
+      }
+      if (alpha <= 0) return;
+      const w = cw * sc, h = ch * sc, x0 = cx - w / 2, y0 = y - h / 2;
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(w > 250 ? item.big : item.small, x0, y0, w, h);
+      if (dim > 0) {
+        ctx.globalAlpha = alpha * dim;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x0, y0, w, h);
+      }
+      if (k > 0) {
+        // hairline so stacked cards read as separate sheets
+        ctx.globalAlpha = alpha * 0.25;
+        ctx.fillStyle = INK;
+        ctx.fillRect(x0, y0, w, 1);
+      }
+
+      labels.push(() => {
+      ctx.fillStyle = INK;
+      ctx.textBaseline = 'top';
+      if (narrow) {
+        if (k < 1 && k > -0.4) {
+          ctx.globalAlpha = alpha * clamp(1 - Math.abs(k) * (k < 0 ? 3 : 1.6), 0, 1);
+          drawLabel(ctx, item, cx - cw / 2, cy + ch / 2 + 18, Math.round(bigPx * 0.8), cw);
+        }
+        return;
+      }
+      const lx = x0 + w + 16;
+      const maxW = W - lx - 80;
+      if (k < 0) {
+        // the leaving label fades fast so it never sits on top of the arriving one
+        ctx.globalAlpha = alpha * clamp(1 + k * 3.5, 0, 1);
+        if (ctx.globalAlpha > 0) drawLabel(ctx, item, lx, y0, bigPx, maxW);
+      } else if (k < 1) {
+        const px = Math.round(lerp(bigPx, smallPx, clamp(k, 0, 1)));
+        ctx.globalAlpha = alpha;
+        ctx.font = font(px);
+        const lines = wrap(ctx, item.name, maxW);
+        const lh = px * 0.9;
+        const shown = k > 0 ? 1 : lines.length; // the name collapses to one line as it recedes
+        for (let l = 0; l < shown; l++) ctx.fillText(lines[l], lx, y0 + l * lh);
+        ctx.globalAlpha = alpha * clamp(1 - k * 2, 0, 1);
+        if (ctx.globalAlpha > 0) drawSize(ctx, item.size, lx, y0 + shown * lh, px);
+      } else {
+        ctx.globalAlpha = alpha * (1 - dim * 0.6);
+        ctx.font = font(smallPx);
+        ctx.fillText(item.name, lx, y0 + 1);
+      }
+      });
+    });
+    labels.forEach((f) => f());
+    ctx.globalAlpha = 1;
+    drawRuler(ctx);
+  },
+};
+
+// Mode 2, scroll: the poster itself, one row of 1, then 2, 3 … 10 objects, filling the window width.
+// Point your index finger and move it up or down to drag the poster; let go and it glides.
+
+const ScrollMode = {
+  spread: false,
+  hintHands: 'POINT YOUR INDEX FINGER · MOVE IT UP OR DOWN TO SCROLL',
+  hintMouse: 'SCROLL OR DRAG TO MOVE ALONG THE POSTER',
+  cells: [],
+  total: 0,
+  footer: 0,
+  u: 1,
+  ox: 0,
+  y: 0,          // scroll offset in px
+  v: 0,          // px per frame
+  prevY: null,   // last pointing fingertip y (px)
+  hover: -1,
+  dragging: false,
+  gain: 2.2,     // how far the poster moves per pixel of finger movement
+
+  enter() { this.prevY = null; },
+
+  resize() {
+    const PW = Math.min(App.W, 1500);
+    const u = PW / 1333;
+    const m = 28 * u, CW = PW - 2 * m, gap = 27 * u;
+    this.u = u;
+    this.ox = (App.W - PW) / 2;
+    this.cells = [];
+    let y = m, idx = 0;
+    for (let r = 1; idx < N; r++) {
+      const cellW = CW / r, iw = cellW * 0.487, ih = iw / ASPECT;
+      for (let j = 0; j < r && idx < N; j++) {
+        this.cells.push({ item: ITEMS[idx++], x: this.ox + m + j * cellW, y, w: iw, h: ih, cellW });
+      }
+      y += ih + gap;
+    }
+    this.footer = y + 220 * u;
+    this.total = this.footer + 60 * u;
+    this.y = clamp(this.y, 0, this.max());
+  },
+
+  max() { return Math.max(0, this.total - App.H); },
+
+  update() {
+    const p = Hands.pointer();
+    if (p) {
+      const fy = p.tip.y * App.H;
+      if (this.prevY !== null) {
+        const d = -(fy - this.prevY) * this.gain;
+        this.y = clamp(this.y + d, -120, this.max() + 120);
+        this.v = lerp(this.v, d, 0.35);
+      }
+      this.prevY = fy;
+    } else {
+      this.prevY = null;
+    }
+    if (!p && !this.dragging) {
+      this.y += this.v;
+      this.v *= 0.94;
+      // ease back from beyond the ends
+      if (this.y < 0) { this.y *= 0.8; this.v *= 0.5; }
+      if (this.y > this.max()) { this.y = this.max() + (this.y - this.max()) * 0.8; this.v *= 0.5; }
+    }
+    // hovered object: under the pointing finger, else under the mouse
+    const hx = p ? p.tip.x * App.W : App.mouse.on ? App.mouse.x : -1;
+    const hy = p ? p.tip.y * App.H : App.mouse.y;
+    this.hover = -1;
+    this.cells.forEach((c, k) => {
+      const y = c.y - this.y;
+      if (hx >= c.x && hx <= c.x + c.cellW && hy >= y && hy <= y + c.h) this.hover = k;
+    });
+  },
+
+  wheel(d) { this.y = clamp(this.y + d, -80, this.max() + 80); this.v = 0; },
+  press() { this.dragging = true; this.v = 0; },
+  drag(dx, dy) { this.y -= dy; this.v = lerp(this.v, -dy, 0.5); },
+  release() { this.dragging = false; },
+  key(k) {
+    const step = App.H * 0.6;
+    if (k === 'ArrowDown' || k === 'PageDown' || k === ' ') { this.v = 0; this.y = clamp(this.y + step, 0, this.max()); return true; }
+    if (k === 'ArrowUp' || k === 'PageUp') { this.v = 0; this.y = clamp(this.y - step, 0, this.max()); return true; }
+    if (k === 'Home') { this.y = 0; return true; }
+    if (k === 'End') { this.y = this.max(); return true; }
+    return false;
+  },
+
+  draw(ctx) {
+    const { H } = App;
+    const off = this.y;
+    ctx.fillStyle = INK;
+    this.cells.forEach((c, k) => {
+      const y = c.y - off;
+      if (y > H || y + c.h < 0) return;
+      const hov = k === this.hover;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(c.w > 250 ? c.item.big : c.item.small, c.x, y, c.w, c.h);
+      if (hov) {
+        ctx.strokeStyle = '#ffd84a';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(c.x - 0.75, y - 0.75, c.w + 1.5, c.h + 1.5);
+      }
+      const px = Math.max(7, c.cellW * 0.057);
+      const tx = c.x + c.w + c.cellW * 0.018;
+      ctx.fillStyle = hov ? '#ffd84a' : INK;
+      drawLabel(ctx, c.item, tx, y - px * 0.1, px, c.cellW - c.w - c.cellW * 0.04);
+    });
+    this.drawFooter(ctx, this.footer - off);
+    // fade under the nav and the hint so text there stays readable
+    const fade = (y0, y1) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgba(0,0,0,0.92)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, Math.min(y0, y1), App.W, Math.abs(y1 - y0)); };
+    fade(0, 52);
+    fade(H, H - 52);
+    // scroll position
+    const max = this.max();
+    if (max > 0) {
+      const trackH = H - 160, top = 80;
+      const thumb = Math.max(30, trackH * H / this.total);
+      const ty = top + (trackH - thumb) * clamp(off / max, 0, 1);
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = INK;
+      ctx.fillRect(App.W - 8, ty, 2, thumb);
+      ctx.globalAlpha = 1;
+    }
+  },
+
+  // the poster's sign-off: converging lines pointing back to the start, and the tagline
+  drawFooter(ctx, y) {
+    if (y > App.H + 10 || y < -100) return;
+    const u = this.u, x0 = this.ox + 28 * u, x1 = this.ox + 1060 * u;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1, 2.2 * u);
+    ctx.beginPath();
+    for (let k = 0; k < 4; k++) {
+      const ly = y + (k - 1.5) * 7 * u;
+      ctx.moveTo(x0 + (36 - Math.abs(k - 1.5) * 8) * u, ly);
+      ctx.lineTo(x1, ly);
+    }
+    ctx.moveTo(x0 + 40 * u, y - 16 * u); ctx.lineTo(x0, y); ctx.lineTo(x0 + 40 * u, y + 16 * u);
+    ctx.stroke();
+    ctx.fillStyle = INK;
+    ctx.textBaseline = 'middle';
+    ctx.font = font(Math.max(9, 14 * u));
+    ctx.fillText('LOOK WITHIN', this.ox + 1165 * u, y - 7 * u);
+    ctx.fillText('TO GO BEYOND', this.ox + 1162 * u, y + 8 * u);
+    ctx.restore();
+  },
+};
+
+// Mode 3, collide: a detector event display run backwards. The objects ride curved particle tracks from the
+// calorimeter into the collision point, where the current one sits large, then collapse into the vertex as the
+// next one arrives. Going the other way (smaller) it explodes outward instead.
+// Two index fingers travel through scale (same as the stack); one pointing finger spins the event in 3D.
+
+const CollideMode = (() => {
+  // seeded random so the event looks the same every visit
+  let seed = 7;
+  const rnd = () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+  const SPREAD = 6;       // how many upcoming objects are in flight along their tracks
+  const R_END = 0.84;     // tracks end at the calorimeter
+  const SAMPLES = 36;
+  const BINS = 90;        // calorimeter towers
+
+  function makeTrack(phi0, c, zEnd, rEnd) {
+    const ac = Math.max(Math.abs(c), 1e-3);
+    const L = 2 * Math.asin(Math.min(0.999, (rEnd * ac) / 2)) / ac;
+    const pts = [];
+    for (let k = 0; k <= SAMPLES; k++) {
+      const l = (k / SAMPLES) * L, th = phi0 + c * l;
+      pts.push(Math.abs(c) < 1e-3
+        ? [l * Math.cos(phi0), l * Math.sin(phi0), zEnd * (k / SAMPLES)]
+        : [(Math.sin(th) - Math.sin(phi0)) / c, -(Math.cos(th) - Math.cos(phi0)) / c, zEnd * (k / SAMPLES)]);
+    }
+    const e = pts[SAMPLES];
+    return { pts, bin: ((Math.round((Math.atan2(e[1], e[0]) / (Math.PI * 2)) * BINS) % BINS) + BINS) % BINS };
+  }
+
+  const tracks = ITEMS.map((it, i) => {
+    const sign = rnd() < 0.5 ? -1 : 1;
+    return makeTrack(i * 2.39996 + rnd() * 0.4, sign * (0.35 + rnd() * 1.9), (rnd() - 0.5) * 1.1, R_END);
+  });
+  // decorative jets, like the yellow spray on the poster
+  const jets = Array.from({ length: 70 }, () => {
+    const cone = rnd() < 0.7;
+    return makeTrack(cone ? 1.9 + (rnd() - 0.5) * 0.9 : rnd() * Math.PI * 2, (rnd() - 0.5) * (cone ? 0.5 : 3), (rnd() - 0.5) * 0.6, 0.6 + rnd() * 0.35);
+  });
+  // tracker hits: short tangential dashes
+  const hits = Array.from({ length: 380 }, () => {
+    const r = 0.14 + rnd() * 0.5, a = rnd() * Math.PI * 2, z = (rnd() - 0.5) * 0.35, l = 0.012 + rnd() * 0.012;
+    return { a: [r * Math.cos(a), r * Math.sin(a), z], b: [r * Math.cos(a + l / r), r * Math.sin(a + l / r), z], hot: rnd() < 0.35 };
+  });
+  const energy = new Float32Array(BINS).map(() => rnd() * 0.04);
+  const ring = (r, z = 0, n = 96) => Array.from({ length: n + 1 }, (_, k) => [r * Math.cos((k / n) * Math.PI * 2), r * Math.sin((k / n) * Math.PI * 2), z]);
+  const rings = [0.035, 0.13, 0.22, 0.33, 0.46, 0.6].map((r) => ring(r));
+  const outer = [ring(0.7), ring(0.95), ring(1.0)];
+
+  const sparks = [];
+  const state = {
+    yaw: 0, pitch: 0, vyaw: 0, vpitch: 0, time: 0,
+    shake: 0, flash: 0, jet: 0, lastI: null, prevTip: null,
+    D: 2.7, S: 1, cx: 0, cy: 0,
+    cyw: 1, syw: 0, cp: 1, sp: 0,
+  };
+
+  // world -> screen. Returns [x, y, perspective factor, depth toward viewer]
+  function P(p) {
+    const s = state;
+    const x1 = p[0] * s.cyw + p[2] * s.syw, z1 = -p[0] * s.syw + p[2] * s.cyw;
+    const y2 = p[1] * s.cp - z1 * s.sp, z2 = p[1] * s.sp + z1 * s.cp;
+    const k = s.D / Math.max(0.3, s.D - z2);
+    return [s.cx + x1 * s.S * k, s.cy + y2 * s.S * k, k, z2];
+  }
+
+  function trackPoint(tr, s) {
+    const f = clamp(s, 0, 1) * SAMPLES, a = Math.floor(f), b = Math.min(SAMPLES, a + 1), r = f - a;
+    const A = tr.pts[a], B = tr.pts[b];
+    return [lerp(A[0], B[0], r), lerp(A[1], B[1], r), lerp(A[2], B[2], r)];
+  }
+
+  function spawn(n, inward, speed = 1) {
+    for (let k = 0; k < n && sparks.length < 900; k++) {
+      // random direction, flattened toward the transverse plane like a real event
+      const a = rnd() * Math.PI * 2, z = (rnd() - 0.5) * 0.9;
+      const d = [Math.cos(a), Math.sin(a), z];
+      const r = inward ? 0.9 + rnd() * 0.3 : 0.02;
+      const sp = (inward ? -1 : 1) * (0.5 + rnd() * 1.2) * speed;
+      const swirl = (rnd() - 0.5) * 2.2;
+      sparks.push({ p: [d[0] * r, d[1] * r, d[2] * r], v: [d[0] * sp - d[1] * swirl * 0.4, d[1] * sp + d[0] * swirl * 0.4, d[2] * sp], inward, life: 0, prev: null, hot: rnd() < 0.5 });
+    }
+  }
+
+  function arrive(dir, i) {
+    if (tracks[i]) for (let d = -1; d <= 1; d++) energy[(tracks[i].bin + d + BINS) % BINS] += 0.09;
+    state.shake = 1;
+    state.flash = 1;
+    state.jet = 1;
+    spawn(dir > 0 ? 220 : 160, dir > 0, 1.4);
+    for (let k = 0; k < 10; k++) energy[Math.floor(rnd() * BINS)] += 0.05 + rnd() * 0.12;
+  }
+
+  function polyline(ctx, pts) {
+    let first = true;
+    pts.forEach((p) => { const q = P(p); if (first) { ctx.moveTo(q[0], q[1]); first = false; } else ctx.lineTo(q[0], q[1]); });
+  }
+
+  return {
+    spread: true,
+    hintHands: 'TWO INDEX FINGERS = TRAVEL THROUGH SCALE · POINT ONE FINGER = SPIN THE EVENT',
+    hintMouse: 'SCROLL OR ↑ ↓ TO TRAVEL THROUGH SCALE · DRAG TO SPIN THE EVENT',
+
+    enter() { state.lastI = Math.round(App.tShown); state.prevTip = null; },
+
+    resize() {
+      state.S = Math.min(App.W, App.H) * 0.5;
+      state.cx = App.W / 2;
+      state.cy = App.H / 2;
+    },
+
+    drag(dx, dy) {
+      state.vyaw = dx * 0.006; state.vpitch = dy * 0.006;
+      state.yaw += state.vyaw; state.pitch = clamp(state.pitch + state.vpitch, -1.3, 1.3);
+    },
+
+    update(dt) {
+      const s = state;
+      s.time += dt;
+
+      // one pointing hand (and not two hands) spins the event
+      const p = Hands.list.length === 1 ? Hands.pointer() : null;
+      if (p) {
+        const tip = [p.tip.x * App.W, p.tip.y * App.H];
+        if (s.prevTip) this.drag((tip[0] - s.prevTip[0]) * 1.6, (tip[1] - s.prevTip[1]) * 1.6);
+        s.prevTip = tip;
+      } else {
+        s.prevTip = null;
+        if (!App.mouse.down) {
+          s.yaw += s.vyaw; s.pitch = clamp(s.pitch + s.vpitch, -1.3, 1.3);
+          s.vyaw *= 0.94; s.vpitch *= 0.94;
+        }
+      }
+      // a slow drift so the event always feels alive
+      const yaw = s.yaw + Math.sin(s.time * 0.13) * 0.35, pitch = s.pitch + Math.sin(s.time * 0.09) * 0.22;
+      s.cyw = Math.cos(yaw); s.syw = Math.sin(yaw); s.cp = Math.cos(pitch); s.sp = Math.sin(pitch);
+
+      // arrivals
+      const i = Math.round(App.tShown);
+      if (s.lastI === null) s.lastI = i;
+      if (i !== s.lastI) { arrive(i - s.lastI, i); s.lastI = i; }
+
+      // ambient particles: inward while growing, outward while shrinking
+      const v = App.tVel;
+      const rate = 25 + Math.min(300, Math.abs(v) * 120);
+      let n = rate * dt;
+      const inward = v > -0.15;
+      while (n > 0) { if (rnd() < n) spawn(1, inward, 0.6 + Math.min(2, Math.abs(v))); n -= 1; }
+
+      for (let k = sparks.length - 1; k >= 0; k--) {
+        const sp = sparks[k];
+        const r = Math.hypot(sp.p[0], sp.p[1], sp.p[2]) || 1e-3;
+        const pull = sp.inward ? -2.2 / (r + 0.25) : 0.8;
+        for (let a = 0; a < 3; a++) sp.v[a] += (sp.p[a] / r) * pull * dt;
+        sp.prev = sp.p.slice();
+        for (let a = 0; a < 3; a++) sp.p[a] += sp.v[a] * dt;
+        sp.life += dt;
+        const r2 = Math.hypot(sp.p[0], sp.p[1], sp.p[2]);
+        if ((sp.inward && r2 < 0.03) || r2 > 1.35 || sp.life > 4) sparks.splice(k, 1);
+      }
+
+      for (let b = 0; b < BINS; b++) energy[b] = energy[b] * Math.pow(0.35, dt) + 0.012 * dt * 60 * rnd() * 0.05;
+      s.shake *= Math.pow(0.02, dt);
+      s.flash *= Math.pow(0.04, dt);
+      s.jet *= Math.pow(0.15, dt);
+    },
+
+    draw(ctx) {
+      const s = state;
+      const { W, H } = App;
+      const t = App.tShown;
+      const sh = s.shake * Math.min(W, H) * 0.012;
+      const cx0 = s.cx, cy0 = s.cy;
+      s.cx = cx0 + (Math.random() - 0.5) * sh;
+      s.cy = cy0 + (Math.random() - 0.5) * sh;
+
+      // vignette
+      const g = ctx.createRadialGradient(s.cx, s.cy, 0, s.cx, s.cy, Math.max(W, H) * 0.7);
+      g.addColorStop(0, 'rgba(40,36,30,0.55)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.lineWidth = 1;
+      // tracker layers
+      ctx.strokeStyle = 'rgba(243,240,232,0.13)';
+      ctx.beginPath(); rings.forEach((r) => polyline(ctx, r)); ctx.stroke();
+      // hits
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(243,240,232,0.45)';
+      hits.forEach((h) => { if (h.hot) return; const a = P(h.a), b = P(h.b); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); });
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255,140,60,0.75)';
+      hits.forEach((h) => { if (!h.hot) return; const a = P(h.a), b = P(h.b); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); });
+      ctx.stroke();
+
+      // calorimeter: a comb ring, red towers, outer grill
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(243,240,232,0.3)';
+      for (let k = 0; k < 144; k++) {
+        const a = (k / 144) * Math.PI * 2, c = Math.cos(a), si = Math.sin(a);
+        const p1 = P([0.7 * c, 0.7 * si, 0]), p2 = P([0.8 * c, 0.8 * si, 0]);
+        ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]);
+      }
+      for (let k = 0; k < 240; k++) {
+        const a = (k / 240) * Math.PI * 2, c = Math.cos(a), si = Math.sin(a);
+        const p1 = P([0.95 * c, 0.95 * si, 0]), p2 = P([1.0 * c, 1.0 * si, 0]);
+        ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(160,200,255,0.4)';
+      ctx.beginPath(); outer.forEach((r) => polyline(ctx, r)); ctx.stroke();
+      ctx.fillStyle = '#ff2a1a';
+      for (let b = 0; b < BINS; b++) {
+        const e = Math.min(0.13, energy[b]);
+        if (e < 0.004) continue;
+        const a0 = (b / BINS) * Math.PI * 2, a1 = ((b + 0.8) / BINS) * Math.PI * 2;
+        const r0 = 0.815, r1 = 0.815 + e;
+        const q = [[r0, a0], [r1, a0], [r1, a1], [r0, a1]].map(([r, a]) => P([r * Math.cos(a), r * Math.sin(a), 0]));
+        ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]); q.slice(1).forEach((p) => ctx.lineTo(p[0], p[1])); ctx.fill();
+      }
+      // muon chamber marks
+      for (let k = 0; k < 18; k++) {
+        const a = (k / 18) * Math.PI * 2 + 0.1, p = P([1.13 * Math.cos(a), 1.13 * Math.sin(a), 0]);
+        const z = 3 * p[2];
+        ctx.fillRect(p[0] - z, p[1] - z, z * 2, z * 2);
+      }
+
+      ctx.globalCompositeOperation = 'lighter';
+      // all tracks, faint; jets glow on arrival
+      ctx.strokeStyle = 'rgba(243,240,232,0.07)';
+      ctx.beginPath(); tracks.forEach((tr, i) => { if (i - t > -1) polyline(ctx, tr.pts); }); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,216,74,${0.05 + s.jet * 0.5})`;
+      ctx.beginPath(); jets.forEach((tr) => polyline(ctx, tr.pts)); ctx.stroke();
+
+      // the tracks of objects in flight: a bright trail behind each one, back toward where it came from
+      ctx.lineWidth = 1.6;
+      ITEMS.forEach((it, i) => {
+        const k = i - t;
+        if (k <= 0 || k > SPREAD + 1) return;
+        const s0 = Math.pow(Math.min(1, k / SPREAD), 0.8), tr = tracks[i];
+        const a = 0.9 * clamp(1 - (k - SPREAD), 0, 1);
+        const steps = 10;
+        for (let q = 0; q < steps; q++) {
+          const u0 = s0 + (q / steps) * 0.45, u1 = s0 + ((q + 1) / steps) * 0.45;
+          if (u0 >= 1) break;
+          const p0 = P(trackPoint(tr, u0)), p1 = P(trackPoint(tr, Math.min(1, u1)));
+          ctx.strokeStyle = `rgba(255,216,74,${a * (1 - q / steps)})`;
+          ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+        }
+      });
+
+      // sparks
+      ctx.lineWidth = 1.2;
+      sparks.forEach((sp) => {
+        if (!sp.prev) return;
+        const a = P(sp.prev), b = P(sp.p);
+        const fade = Math.min(1, sp.life * 4) * (sp.inward ? 1 : Math.max(0, 1 - sp.life / 1.6));
+        ctx.strokeStyle = sp.hot ? `rgba(255,120,50,${0.8 * fade})` : `rgba(255,226,140,${0.75 * fade})`;
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0] + (b[0] - a[0]) * 2, b[1] + (b[1] - a[1]) * 2); ctx.stroke();
+      });
+      ctx.globalCompositeOperation = 'source-over';
+
+      // objects, far to near
+      const draws = [];
+      ITEMS.forEach((it, i) => {
+        const k = i - t;
+        if (k < -1) return;
+        let pos, size, alpha, spin = 0;
+        if (k >= 0) {
+          const sp = Math.pow(Math.min(1, k / SPREAD), 0.8);
+          pos = trackPoint(tracks[i], sp);
+          size = lerp(0.07, 0.62, Math.pow(1 - sp, 2.2));
+          alpha = k > SPREAD ? 0.45 : 1;
+        } else {
+          const q = -k;
+          pos = [0, 0, 0];
+          size = 0.62 * Math.pow(1 - q, 1.4);
+          alpha = 1 - q * q;
+          spin = q * q * 2.4;
+        }
+        const p = P(pos);
+        draws.push({ it, k, p, size, alpha, spin });
+      });
+      draws.sort((a, b) => a.p[3] - b.p[3] || b.k - a.k);
+      const center = draws.find((d) => d.it.i === clamp(Math.round(t), 0, N - 1));
+      const keepOut = center ? center.size * s.S * center.p[2] * 0.75 + 140 : 0;
+      draws.forEach(({ it, k, p, size, alpha, spin }) => {
+        const w = size * s.S * p[2], h = w / ASPECT;
+        if (w < 1) return;
+        ctx.globalAlpha = alpha;
+        ctx.save();
+        ctx.translate(p[0], p[1]);
+        if (spin) ctx.rotate(spin);
+        ctx.drawImage(w > 250 ? it.big : it.small, -w / 2, -h / 2, w, h);
+        ctx.restore();
+        // small labels on the objects still in flight
+        if (k > 0.3 && k < 3.5 && Math.hypot(p[0] - s.cx, p[1] - s.cy) > keepOut) {
+          ctx.globalAlpha = alpha * clamp((3.5 - k) / 2, 0, 0.85);
+          ctx.fillStyle = INK;
+          ctx.font = font(10);
+          ctx.textBaseline = 'top';
+          ctx.fillText(it.name, p[0] + w / 2 + 6, p[1] - h / 2);
+        }
+      });
+      ctx.globalAlpha = 1;
+
+      // collision flash
+      if (s.flash > 0.01) {
+        ctx.globalCompositeOperation = 'lighter';
+        const r = Math.min(W, H) * (0.1 + (1 - s.flash) * 0.5);
+        const fg = ctx.createRadialGradient(s.cx, s.cy, 0, s.cx, s.cy, r);
+        fg.addColorStop(0, `rgba(255,240,200,${0.7 * s.flash})`);
+        fg.addColorStop(0.4, `rgba(255,170,60,${0.3 * s.flash})`);
+        fg.addColorStop(1, 'rgba(255,80,20,0)');
+        ctx.fillStyle = fg;
+        ctx.fillRect(s.cx - r, s.cy - r, r * 2, r * 2);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      // label for the object at the vertex, poster style, beside it
+      const ci = clamp(Math.round(t), 0, N - 1), ck = ci - t;
+      const cur = center;
+      if (cur) {
+        const w = cur.size * s.S * cur.p[2], h = w / ASPECT;
+        const px = clamp(Math.round(w * 0.085), 14, 44);
+        ctx.globalAlpha = clamp(1 - Math.abs(ck) * 2.2, 0, 1);
+        ctx.fillStyle = INK;
+        const lx = Math.min(cur.p[0] + w / 2 + 18, W - 300);
+        drawLabel(ctx, cur.it, lx, cur.p[1] - h / 2, px, W - lx - 70);
+        ctx.globalAlpha = 1;
+      }
+
+      s.cx = cx0; s.cy = cy0;
+      drawRuler(ctx, 0.8);
+    },
+  };
+})();
+
+// Cosmic scale: shared state, images, text, input, HUD and the frame loop.
+// The three modes live in stack.js, scroll.js and collide.js.
+
+const ASPECT = 1.27;            // every image on the poster is cropped to this width : height
+const IMAGE_DIR = window.IMAGE_DIR || 'images/';
+const EXTS = ['jpg', 'png', 'jpeg', 'webp', 'avif'];
+const FONT = '"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
+const INK = '#f3f0e8';
+// index-finger distance (fraction of camera width) that maps to the smallest / largest object
+const SPREAD_MIN = 0.05, SPREAD_MAX = 0.72;
+
+const App = {
+  W: 0, H: 0, dpr: 1, ctx: null,
+  mode: null, modes: {},
+  t: 0, tTarget: 0, tShown: 0, tVel: 0,     // position along the 55 objects (0 = Higgs, 54 = Coma)
+  mouse: { x: 0, y: 0, down: false, on: false },
+  preview: true,
+  idle: 0,                                   // seconds since the last input
+};
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+// soft detents: t lingers on each whole object and moves quickly between them
+const detent = (x) => { const f = Math.floor(x), r = x - f; return f + r - Math.sin(2 * Math.PI * r) / (2 * Math.PI) * 0.85; };
+// log10 size at a fractional position along the list
+const logAt = (t) => { const f = clamp(Math.floor(t), 0, N - 1), c = Math.min(N - 1, f + 1); return lerp(ITEMS[f].log, ITEMS[c].log, clamp(t - f, 0, 1)); };
+
+/* ---------- images ---------- */
+
+function coverCanvas(img, w) {
+  const h = Math.round(w / ASPECT);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  x.imageSmoothingQuality = 'high';
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  let sw = iw, sh = iw / ASPECT;
+  if (sh > ih) { sh = ih; sw = ih * ASPECT; }
+  x.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, w, h);
+  return c;
+}
+
+function setImage(item, img) {
+  item.big = coverCanvas(img, 900);
+  item.small = coverCanvas(img, 240);
+  item.real = true;
+}
+
+// stand-in until the real photo is in images/: a colour field keyed to the scale (blue subatomic → violet cosmic)
+function placeholder(item, w) {
+  const h = Math.round(w / ASPECT);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  const hue = (215 - ((item.log + 9) / 41) * 290 + 720) % 360;
+  x.fillStyle = `hsl(${hue},35%,7%)`;
+  x.fillRect(0, 0, w, h);
+  const g = x.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.55);
+  g.addColorStop(0, `hsla(${hue},80%,62%,0.95)`);
+  g.addColorStop(0.35, `hsla(${(hue + 30) % 360},70%,40%,0.6)`);
+  g.addColorStop(1, `hsla(${hue},60%,10%,0)`);
+  x.fillStyle = g;
+  x.fillRect(0, 0, w, h);
+  x.strokeStyle = 'rgba(255,255,255,0.18)';
+  x.lineWidth = w / 240;
+  for (let r = 1; r <= 5; r++) { x.beginPath(); x.arc(w / 2, h / 2, (r * h) / 11, 0, Math.PI * 2); x.stroke(); }
+  x.fillStyle = 'rgba(255,255,255,0.55)';
+  x.font = `${Math.round(w / 14)}px ${FONT}`;
+  x.textBaseline = 'top';
+  x.fillText(String(item.i + 1).padStart(2, '0'), w * 0.04, h * 0.05);
+  return c;
+}
+
+function loadImages() {
+  ITEMS.forEach((item) => {
+    item.big = placeholder(item, 480);
+    item.small = placeholder(item, 240);
+    let k = 0;
+    const img = new Image();
+    img.onload = () => setImage(item, img);
+    img.onerror = () => { if (++k < EXTS.length) img.src = IMAGE_DIR + item.slug + '.' + EXTS[k]; };
+    img.src = IMAGE_DIR + item.slug + '.' + EXTS[0];
+  });
+}
+
+// match dropped / picked files to objects by name: "higgs-boson.jpg", "Higgs Boson.png", "01.jpg" all work
+const norm = (s) => s.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]/g, '');
+function matchFile(name) {
+  const n = norm(name);
+  if (/^\d+$/.test(n)) return ITEMS[+n - 1] || null;
+  let best = null, bestLen = 0;
+  ITEMS.forEach((item) => {
+    [norm(item.slug), norm(item.name)].forEach((key) => {
+      if ((n === key || n.includes(key)) && key.length > bestLen) { best = item; bestLen = key.length; }
+    });
+  });
+  return best;
+}
+
+function addFiles(files) {
+  let used = 0;
+  [...files].forEach((f) => {
+    if (!f.type.startsWith('image/')) return;
+    const item = matchFile(f.name);
+    if (!item) return;
+    used++;
+    const img = new Image();
+    img.onload = () => { setImage(item, img); URL.revokeObjectURL(img.src); };
+    img.src = URL.createObjectURL(f);
+  });
+  flash(used ? `${used} image${used > 1 ? 's' : ''} placed` : 'no file names matched an object');
+}
+
+/* ---------- text ---------- */
+
+const font = (px) => `${px}px ${FONT}`;
+
+function wrap(ctx, text, maxW) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach((w) => {
+    const test = line ? line + ' ' + w : w;
+    if (line && ctx.measureText(test).width > maxW) { lines.push(line); line = w; } else line = test;
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+// "1.6 × 10^-9" + " NM" with a raised exponent, top-aligned at y
+function drawSize(ctx, str, x, y, px) {
+  const m = str.match(/^(.*10)\^(-?\d+)$/);
+  ctx.font = font(px);
+  if (!m) { ctx.fillText(str + ' NM', x, y); return; }
+  ctx.fillText(m[1], x, y);
+  let w = ctx.measureText(m[1]).width;
+  ctx.font = font(px * 0.58);
+  const e = m[2].replace('-', '⁻');
+  ctx.fillText(e, x + w + px * 0.08, y - px * 0.08);
+  w += px * 0.08 + ctx.measureText(e).width;
+  ctx.font = font(px);
+  ctx.fillText(' NM', x + w, y);
+}
+
+// poster-style label: wrapped name, then size. Returns its height.
+function drawLabel(ctx, item, x, y, px, maxW) {
+  ctx.textBaseline = 'top';
+  ctx.font = font(px);
+  const lines = wrap(ctx, item.name, Math.max(maxW, px * 3));
+  const lh = px * 0.9;
+  lines.forEach((l, k) => ctx.fillText(l, x, y + k * lh));
+  drawSize(ctx, item.size, x, y + lines.length * lh, px);
+  return (lines.length + 1) * lh;
+}
+
+/* ---------- shared HUD pieces ---------- */
+
+// vertical log ruler on the right edge, 10^-9 at the bottom to 10^32 at the top
+function drawRuler(ctx, alpha = 1) {
+  const { W, H } = App;
+  const x = W - 34, top = 90, bot = H - 90;
+  const lo = -9, hi = 33;
+  const yOf = (L) => lerp(bot, top, (L - lo) / (hi - lo));
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = 'rgba(243,240,232,0.35)';
+  ctx.fillStyle = 'rgba(243,240,232,0.45)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, top); ctx.lineTo(x, bot);
+  for (let L = lo; L <= hi; L++) {
+    const y = Math.round(yOf(L)) + 0.5, len = L % 5 === 0 ? 10 : 5;
+    ctx.moveTo(x, y); ctx.lineTo(x + len, y);
+  }
+  ctx.stroke();
+  ctx.font = font(9);
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  for (let L = -5; L <= hi; L += 5) drawPow(ctx, L, x - 6, yOf(L), 9);
+  // the objects
+  ITEMS.forEach((it) => { ctx.fillRect(x - 2, yOf(it.log) - 0.5, 4, 1); });
+  // current position
+  const L = logAt(App.t), y = yOf(L);
+  ctx.fillStyle = INK;
+  ctx.globalAlpha = alpha;
+  ctx.beginPath(); ctx.moveTo(x + 14, y); ctx.lineTo(x + 22, y - 5); ctx.lineTo(x + 22, y + 5); ctx.fill();
+  ctx.fillRect(x - 8, y - 0.75, 22, 1.5);
+  ctx.restore();
+}
+
+function drawPow(ctx, L, x, y, px) {
+  // right-aligned "10^L"
+  const e = String(L).replace('-', '⁻');
+  ctx.font = font(px * 0.7);
+  const ew = ctx.measureText(e).width;
+  ctx.fillText(e, x, y - px * 0.35);
+  ctx.font = font(px);
+  ctx.fillText('10', x - ew - 1, y);
+}
+
+const HAND_LINES = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]];
+
+function drawPreview(ctx) {
+  const v = Hands.video;
+  if (!App.preview || !v || v.readyState < 2) return;
+  const w = Math.min(220, App.W * 0.28), h = w / Hands.aspect;
+  const x = 16, y = App.H - h - 16;
+  ctx.save();
+  ctx.globalAlpha = 0.75;
+  ctx.translate(x + w, y);
+  ctx.scale(-1, 1);
+  ctx.drawImage(v, 0, 0, w, h);
+  ctx.restore();
+  ctx.save();
+  ctx.strokeStyle = 'rgba(243,240,232,0.25)';
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  Hands.list.forEach((hand) => {
+    ctx.strokeStyle = hand.pointing ? '#ffd84a' : 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    HAND_LINES.forEach(([a, b]) => {
+      ctx.moveTo(x + hand.lm[a].x * w, y + hand.lm[a].y * h);
+      ctx.lineTo(x + hand.lm[b].x * w, y + hand.lm[b].y * h);
+    });
+    ctx.stroke();
+    ctx.fillStyle = '#ff3b2f';
+    ctx.beginPath(); ctx.arc(x + hand.tip.x * w, y + hand.tip.y * h, 3, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.restore();
+}
+
+// fingertips on screen: the whole camera frame maps onto the whole window
+function drawCursors(ctx) {
+  const { W, H } = App;
+  const hands = Hands.list;
+  const usesSpread = App.mode.spread;
+  ctx.save();
+  ctx.lineWidth = 1.5;
+  if (usesSpread && hands.length === 2) {
+    const [a, b] = hands;
+    ctx.setLineDash([3, 6]);
+    ctx.strokeStyle = 'rgba(243,240,232,0.45)';
+    ctx.beginPath(); ctx.moveTo(a.tip.x * W, a.tip.y * H); ctx.lineTo(b.tip.x * W, b.tip.y * H); ctx.stroke();
+    ctx.setLineDash([]);
+    const mx = (a.tip.x + b.tip.x) / 2 * W, my = (a.tip.y + b.tip.y) / 2 * H;
+    ctx.fillStyle = INK;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.font = font(11);
+    ctx.fillText(ITEMS[clamp(Math.round(App.t), 0, N - 1)].name, mx, my - 8);
+    ctx.textAlign = 'left';
+  }
+  hands.forEach((h) => {
+    const x = h.tip.x * W, y = h.tip.y * H;
+    ctx.strokeStyle = h.pointing ? '#ffd84a' : 'rgba(243,240,232,0.8)';
+    ctx.beginPath(); ctx.arc(x, y, h.pointing ? 16 : 11, 0, Math.PI * 2); ctx.stroke();
+    if (h.pointing) { ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill(); }
+  });
+  ctx.restore();
+}
+
+/* ---------- DOM ---------- */
+
+let flashTimer = 0;
+function flash(text) {
+  const el = document.getElementById('flash');
+  el.textContent = text;
+  el.classList.add('on');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => el.classList.remove('on'), 2200);
+}
+
+function setMode(name) {
+  if (!App.modes[name] || App.mode === App.modes[name]) return;
+  App.mode = App.modes[name];
+  if (App.mode.enter) App.mode.enter();
+  document.querySelectorAll('#nav button[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === name));
+  updateHint();
+}
+
+function updateHint() {
+  const cam = !!Hands.model;
+  document.getElementById('hint').textContent = cam ? App.mode.hintHands : App.mode.hintMouse;
+}
+
+/* ---------- loop ---------- */
+
+function resize() {
+  App.dpr = Math.min(2, window.devicePixelRatio || 1);
+  App.W = window.innerWidth;
+  App.H = window.innerHeight;
+  const c = App.ctx.canvas;
+  c.width = Math.round(App.W * App.dpr);
+  c.height = Math.round(App.H * App.dpr);
+  Object.values(App.modes).forEach((m) => m.resize && m.resize());
+}
+
+function updateScale(dt) {
+  const s = App.mode.spread ? Hands.spread() : null;
+  if (s !== null) {
+    App.tTarget = clamp((s - SPREAD_MIN) / (SPREAD_MAX - SPREAD_MIN), 0, 1) * (N - 1);
+    App.idle = 0;
+  } else if (App.mode.spread && App.idle > 30) {
+    // nobody around: drift slowly up through scale, and rewind (an explosion, in collide) at the end
+    App.tTarget += dt * 0.45;
+    if (App.tTarget > N - 1 + 0.6) App.tTarget = 0;
+  }
+  const prev = App.t;
+  App.t += (App.tTarget - App.t) * (1 - Math.pow(0.88, dt * 60));
+  App.tVel = lerp(App.tVel, (App.t - prev) / Math.max(dt, 1e-3), 0.2);
+  App.tShown = detent(App.t);
+}
+
+let lastNow = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastNow) / 1000);
+  lastNow = now;
+  App.idle += dt;
+  Hands.update();
+  if (Hands.list.length) App.idle = 0;
+  updateScale(dt);
+  App.mode.update(dt);
+
+  const ctx = App.ctx;
+  ctx.setTransform(App.dpr, 0, 0, App.dpr, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, App.W, App.H);
+  ctx.fillStyle = INK;
+  App.mode.draw(ctx);
+  drawCursors(ctx);
+  drawPreview(ctx);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- input ---------- */
+
+function bindInput() {
+  const c = App.ctx.canvas;
+  c.addEventListener('pointerdown', (e) => {
+    App.mouse.down = true; App.mouse.x = e.clientX; App.mouse.y = e.clientY; App.idle = 0;
+    c.setPointerCapture(e.pointerId);
+    if (App.mode.press) App.mode.press(e.clientX, e.clientY);
+  });
+  c.addEventListener('pointermove', (e) => {
+    const dx = e.clientX - App.mouse.x, dy = e.clientY - App.mouse.y;
+    App.mouse.x = e.clientX; App.mouse.y = e.clientY; App.mouse.on = true;
+    if (App.mouse.down) { App.idle = 0; if (App.mode.drag) App.mode.drag(dx, dy); }
+  });
+  const up = () => { if (App.mouse.down && App.mode.release) App.mode.release(); App.mouse.down = false; };
+  c.addEventListener('pointerup', up);
+  c.addEventListener('pointercancel', up);
+  c.addEventListener('pointerleave', () => { App.mouse.on = false; });
+  c.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    App.idle = 0;
+    const d = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY;
+    if (App.mode.wheel) App.mode.wheel(d);
+    else App.tTarget = clamp(App.tTarget + d * 0.004, 0, N - 1);
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    const k = e.key.toLowerCase();
+    if (k === '1') setMode('stack');
+    else if (k === '2') setMode('scroll');
+    else if (k === '3') setMode('collide');
+    else if (k === 'c') App.preview = !App.preview;
+    else if (k === 'f') { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
+    else if (App.mode.key && App.mode.key(e.key)) e.preventDefault();
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { App.tTarget = clamp(Math.round(App.tTarget) + 1, 0, N - 1); e.preventDefault(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { App.tTarget = clamp(Math.round(App.tTarget) - 1, 0, N - 1); e.preventDefault(); }
+    App.idle = 0;
+  });
+
+  document.querySelectorAll('#nav button[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  document.getElementById('files').addEventListener('change', (e) => addFiles(e.target.files));
+  window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('dropping'); });
+  window.addEventListener('dragleave', (e) => { if (!e.relatedTarget) document.body.classList.remove('dropping'); });
+  window.addEventListener('drop', (e) => { e.preventDefault(); document.body.classList.remove('dropping'); addFiles(e.dataTransfer.files); });
+  window.addEventListener('resize', resize);
+
+  const begin = () => { document.body.classList.remove('intro'); };
+  document.getElementById('cam').addEventListener('click', () => { begin(); Hands.start(); });
+  document.getElementById('nocam').addEventListener('click', begin);
+  Hands.onStatus = (t) => { document.getElementById('status').textContent = t; updateHint(); };
+}
+
+/* ---------- start ---------- */
+
+function init() {
+  App.ctx = document.getElementById('c').getContext('2d');
+  App.modes = { stack: StackMode, scroll: ScrollMode, collide: CollideMode };
+  loadImages();
+  bindInput();
+  resize();
+  const start = (location.hash || '').replace('#', '');
+  App.mode = null;
+  setMode(App.modes[start] ? start : 'stack');
+  requestAnimationFrame(frame);
+}
+
+(document.fonts && document.fonts.load ? document.fonts.load(font(16)).catch(() => {}) : Promise.resolve()).then(init);
+
+</script>
+</body>
+</html>
