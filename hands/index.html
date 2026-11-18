@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CERN Hands</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+</head>
+<body class="empty">
+<div id="empty">
+  <button id="cam" type="button">start camera</button>
+  <button id="nocam" type="button">mouse only</button>
+</div>
+<aside id="panel">
+  <h1>Hands</h1>
+
+  <div class="seg3">
+    <button id="s-cube" data-shape="cube">Cube</button>
+    <button id="s-sphere" data-shape="sphere" class="on">Sphere</button>
+    <button id="s-pyramid" data-shape="pyramid">Pyramid</button>
+  </div>
+
+  <div class="slider"><span>Line thickness</span><input type="range" id="thick" min="0.5" max="14" step="0.5" value="1.5"><output></output></div>
+  <div class="slider"><span>Circle size</span><input type="range" id="size" min="3" max="40" step="1" value="10"><output></output></div>
+  <div class="slider"><span>Density</span><input type="range" id="density" min="0.02" max="1" step="0.01" value="0.8"><output></output></div>
+  <div class="slider"><span>Shape size</span><input type="range" id="scale" min="0.3" max="1.4" step="0.05" value="1"><output></output></div>
+  <div class="slider"><span>Spin speed</span><input type="range" id="spin" min="0" max="3" step="0.1" value="1"><output></output></div>
+  <div class="slider"><span>Touch radius</span><input type="range" id="radius" min="20" max="300" step="5" value="90"><output></output></div>
+  <div class="slider"><span>Randomness</span><input type="range" id="chaos" min="0" max="1" step="0.05" value="0.7"><output></output></div>
+  <div class="slider"><span>Stretch</span><input type="range" id="stretch" min="0" max="1" step="0.05" value="0.5"><output></output></div>
+  <div class="slider"><span>Video brightness</span><input type="range" id="vidbright" min="0" max="1" step="0.05" value="0.6"><output></output></div>
+
+  <label class="row"><input type="checkbox" id="showtips" checked> Show fingertips</label>
+  <label class="row"><input type="checkbox" id="vidsvg" checked> Include video frame in SVG</label>
+
+  <div id="colors"></div>
+
+  <button id="save">Save SVG (S)</button>
+  <button id="noise">Noise</button>
+  <button id="reshuffle">Reshuffle circles</button>
+  <p id="status">camera off</p>
+  <p class="hint">Drag to rotate. Press <kbd>S</kbd> to save the frame as an SVG.</p>
+</aside>
+<script src="sketch.js"></script>
+</body>
+</html>

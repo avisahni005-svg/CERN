@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CERN Hands</title>
+<style>
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font: 13px/1.3 system-ui, sans-serif; }
+canvas { display: block; }
+#panel {
+  position: fixed; top: 12px; right: 12px; width: 236px; padding: 14px;
+  background: rgba(24,24,24,.92); color: #eee; border-radius: 10px; z-index: 2;
+  max-height: calc(100% - 48px); overflow: auto;
+}
+h1 { font-size: 14px; margin: 0 0 10px; letter-spacing: .04em; text-transform: uppercase; }
+.file { display: block; margin-bottom: 8px; }
+.file input { display: block; margin-top: 4px; width: 100%; color: #aaa; }
+.row { display: block; margin: 6px 0; }
+.seg { display: flex; margin: 10px 0; }
+.seg button { flex: 1; }
+button { background: #333; color: #eee; border: 1px solid #555; padding: 6px 8px; cursor: pointer; }
+button.on { background: #eee; color: #000; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+#save, #noise, #reshuffle { width: 100%; border-radius: 6px; margin-top: 8px; }
+.slider { display: grid; grid-template-columns: 1fr auto; margin: 8px 0; }
+.slider input { grid-column: 1 / 3; width: 100%; }
+.slider output { color: #999; }
+.color { display: grid; grid-template-columns: 1fr 28px 74px; gap: 6px; align-items: center; margin: 5px 0; }
+.color input[type=color] { width: 28px; height: 22px; padding: 0; border: 0; background: none; }
+.color input[type=text] { width: 100%; box-sizing: border-box; background: #111; color: #eee; border: 1px solid #444; padding: 3px 4px; font-family: monospace; }
+.hint { color: #888; margin: 10px 0 0; }
+kbd { background: #333; border-radius: 3px; padding: 0 4px; }
+body.empty #empty { display: grid; }
+body.empty #panel { display: none; }
+#empty { display: none; position: fixed; inset: 0; z-index: 1; place-content: center; justify-items: center; gap: 10px; color: #777; font-size: 11px; letter-spacing: .08em; }
+#empty label, #empty button { cursor: pointer; color: inherit; background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit; }
+#empty label:hover, #empty button:hover { color: #ccc; }
+canvas { cursor: grab; }
+.seg3 { display: flex; margin: 10px 0; }
+.seg3 button { flex: 1; border-radius: 0; }
+.seg3 button:first-child { border-radius: 6px 0 0 6px; }
+.seg3 button:last-child { border-radius: 0 6px 6px 0; }
+#status { color: #888; margin: 6px 0 0; font-size: 12px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+</head>
+<body class="empty">
+<div id="empty">
+  <button id="cam" type="button">start camera</button>
+  <button id="nocam" type="button">mouse only</button>
+</div>
+<aside id="panel">
+  <h1>Hands</h1>
+
+  <div class="seg3">
+    <button id="s-cube" data-shape="cube">Cube</button>
+    <button id="s-sphere" data-shape="sphere" class="on">Sphere</button>
+    <button id="s-pyramid" data-shape="pyramid">Pyramid</button>
+  </div>
+
+  <div class="slider"><span>Line thickness</span><input type="range" id="thick" min="0.5" max="14" step="0.5" value="1.5"><output></output></div>
+  <div class="slider"><span>Circle size</span><input type="range" id="size" min="3" max="40" step="1" value="10"><output></output></div>
+  <div class="slider"><span>Density</span><input type="range" id="density" min="0.02" max="1" step="0.01" value="0.8"><output></output></div>
+  <div class="slider"><span>Shape size</span><input type="range" id="scale" min="0.3" max="1.4" step="0.05" value="1"><output></output></div>
+  <div class="slider"><span>Spin speed</span><input type="range" id="spin" min="0" max="3" step="0.1" value="1"><output></output></div>
+  <div class="slider"><span>Touch radius</span><input type="range" id="radius" min="20" max="300" step="5" value="90"><output></output></div>
+  <div class="slider"><span>Randomness</span><input type="range" id="chaos" min="0" max="1" step="0.05" value="0.7"><output></output></div>
+  <div class="slider"><span>Stretch</span><input type="range" id="stretch" min="0" max="1" step="0.05" value="0.5"><output></output></div>
+  <div class="slider"><span>Video brightness</span><input type="range" id="vidbright" min="0" max="1" step="0.05" value="0.6"><output></output></div>
+
+  <label class="row"><input type="checkbox" id="showtips" checked> Show fingertips</label>
+  <label class="row"><input type="checkbox" id="vidsvg" checked> Include video frame in SVG</label>
+
+  <div id="colors"></div>
+
+  <button id="save">Save SVG (S)</button>
+  <button id="noise">Noise</button>
+  <button id="reshuffle">Reshuffle circles</button>
+  <p id="status">camera off</p>
+  <p class="hint">Drag to rotate. Press <kbd>S</kbd> to save the frame as an SVG.</p>
+</aside>
+<script>
+// Hands — p5.js sketch.
+// Outlined circles cover a spinning cube, sphere or pyramid over a live camera feed. Fingertips seen by the
+// camera (MediaPipe hand tracking) disrupt the circles the way a mouse does; the mouse still works too.
+// Press "S" to download the current frame as an SVG.
+
+const PANEL_W = 270;
+const SEG = 20; // points per circle outline
+const COS = Array.from({ length: SEG }, (_, i) => Math.cos((i / SEG) * Math.PI * 2));
+const SIN = Array.from({ length: SEG }, (_, i) => Math.sin((i / SEG) * Math.PI * 2));
+const TIPS = [4, 8, 12, 16, 20]; // thumb, index, middle, ring, pinky fingertips
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+const S = {
+  shape: 'sphere',
+  thick: 1.5,
+  size: 10,
+  radius: 90,
+  stretch: 0.5,
+  chaos: 0.7,
+  scale: 1,
+  density: 0.8,
+  spin: 1,
+  vidbright: 0.6,
+  showtips: true,
+  vidsvg: true,
+  noiseOn: false,
+  seed: 1,
+  col: { bg: '#000000', fill: '#ffffff' },
+  ready: false,
+  pts: [],
+  yaw: 0.4, pitch: -0.3, vyaw: 0, vpitch: 0,
+  R: 250, cx: 0, cy: 0,
+};
+const mouse = { x: 0, y: 0, on: false, down: false };
+let video = null;          // camera <video>, once started
+let handLandmarker = null; // MediaPipe model, once loaded
+let lastVideoTime = -1;
+let tips = [];             // smoothed fingertip positions on screen: {x, y}
+let pointers = [];         // everything that pushes circles this frame (fingertips + mouse)
+
+const COLOR_FIELDS = [['bg', 'Background'], ['fill', 'Circles']];
+
+/* ---------- p5 ---------- */
+
+function setup() {
+  const c = createCanvas(windowWidth, windowHeight);
+  const el = c.elt;
+  el.addEventListener('pointermove', (e) => {
+    if (mouse.down) {
+      S.vyaw = (e.offsetX - mouse.x) * 0.006;
+      S.vpitch = (e.offsetY - mouse.y) * 0.006;
+      S.yaw += S.vyaw;
+      S.pitch = Math.max(-1.4, Math.min(1.4, S.pitch + S.vpitch));
+    }
+    mouse.x = e.offsetX;
+    mouse.y = e.offsetY;
+    mouse.on = true;
+  });
+  el.addEventListener('pointerdown', () => { mouse.down = true; S.vyaw = S.vpitch = 0; });
+  window.addEventListener('pointerup', () => { mouse.down = false; });
+  el.addEventListener('pointerleave', () => { mouse.on = false; });
+  buildGui();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  if (S.ready) layout();
+}
+
+function draw() {
+  const ctx = drawingContext;
+  const pd = pixelDensity();
+  ctx.setTransform(pd, 0, 0, pd, 0, 0);
+  ctx.fillStyle = S.col.bg;
+  ctx.fillRect(0, 0, width, height);
+  if (!S.ready) return;
+
+  drawVideo(ctx);
+  trackHands();
+
+  if (!mouse.down) {
+    S.yaw += S.vyaw + 0.006 * S.spin;
+    S.pitch = Math.max(-1.4, Math.min(1.4, S.pitch + S.vpitch + 0.0022 * S.spin * Math.sin(frameCount * 0.004)));
+    S.vyaw *= 0.94;
+    S.vpitch *= 0.94;
+  }
+  pointers = tips.slice();
+  if (mouse.on && !mouse.down) pointers.push({ x: mouse.x, y: mouse.y });
+
+  const shapes = frameShapes();
+  ctx.lineWidth = S.thick;
+  ctx.strokeStyle = S.col.fill;
+  ctx.lineJoin = 'round';
+  for (const sh of shapes) {
+    ctx.globalAlpha = sh.alpha;
+    ctx.stroke(new Path2D(sh.d));
+  }
+  ctx.globalAlpha = 1;
+
+  if (S.showtips) {
+    ctx.fillStyle = S.col.fill;
+    ctx.globalAlpha = 0.8;
+    for (const t of tips) { ctx.beginPath(); ctx.arc(t.x, t.y, 4, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function keyPressed() {
+  if ((key === 's' || key === 'S') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+    saveSvg();
+    return false;
+  }
+}
+
+/* ---------- camera + hand tracking ---------- */
+
+function setStatus(t) {
+  document.getElementById('status').textContent = t;
+}
+
+async function startCamera() {
+  begin();
+  setStatus('asking for camera…');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' }, audio: false });
+    video = document.createElement('video');
+    video.playsInline = true;
+    video.muted = true;
+    video.srcObject = stream;
+    await video.play();
+  } catch (err) {
+    video = null;
+    setStatus('no camera (' + (err && err.name ? err.name : 'error') + '), using mouse');
+    return;
+  }
+  setStatus('loading hand tracking…');
+  try {
+    const { HandLandmarker, FilesetResolver } = await import(MP + '/vision_bundle.mjs');
+    const fileset = await FilesetResolver.forVisionTasks(MP + '/wasm');
+    const make = (delegate) => HandLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL, delegate },
+      runningMode: 'VIDEO',
+      numHands: 2,
+    });
+    try { handLandmarker = await make('GPU'); } catch (e) { handLandmarker = await make('CPU'); }
+    setStatus('hands ready: show your hands to the camera');
+  } catch (err) {
+    setStatus('hand tracking failed to load, using mouse');
+  }
+}
+
+// where the camera image lands on screen: cover the whole window, mirrored like a selfie view
+function videoRect() {
+  const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+  const sc = Math.max(width / vw, height / vh);
+  return { vw, vh, sc, ox: (width - vw * sc) / 2, oy: (height - vh * sc) / 2 };
+}
+
+function drawVideo(ctx) {
+  if (!video || video.readyState < 2) return;
+  const v = videoRect();
+  ctx.save();
+  ctx.translate(width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, v.ox, v.oy, v.vw * v.sc, v.vh * v.sc);
+  ctx.restore();
+  ctx.fillStyle = `rgba(0,0,0,${1 - S.vidbright})`;
+  ctx.fillRect(0, 0, width, height);
+}
+
+function trackHands() {
+  if (!handLandmarker || !video || video.readyState < 2) { tips = []; return; }
+  if (video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const res = handLandmarker.detectForVideo(video, performance.now());
+    const v = videoRect();
+    const next = [];
+    (res.landmarks || []).forEach((hand, h) => {
+      TIPS.forEach((idx, k) => {
+        const lm = hand[idx];
+        const x = v.ox + (1 - lm.x) * v.vw * v.sc, y = v.oy + lm.y * v.vh * v.sc;
+        const old = tips[next.length];
+        // light smoothing so a jittery detection does not make the circles shiver
+        next.push(old ? { x: old.x + (x - old.x) * 0.6, y: old.y + (y - old.y) * 0.6 } : { x, y });
+      });
+    });
+    tips = next;
+  }
+}
+
+/* ---------- 3D helpers ---------- */
+
+// world -> camera: yaw about Y, then pitch about X. +z points at the viewer.
+function toCam(x, y, z) {
+  const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+  return [x1, y * cp - z1 * sp, y * sp + z1 * cp];
+}
+
+function toWorld(x, y, z) {
+  const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const y1 = y * cp + z * sp, z1 = -y * sp + z * cp;
+  return [x * cy - z1 * sy, y1, x * sy + z1 * cy];
+}
+
+const persp = (z) => (S.R * 3.2) / (S.R * 3.2 - z);
+
+/* ---------- start + layout ---------- */
+
+function begin() {
+  S.ready = true;
+  document.body.classList.remove('empty');
+  layout();
+}
+
+function layout() {
+  const availW = Math.max(120, width - PANEL_W - 60);
+  S.R = Math.min(availW, height - 60) * 0.42 * S.scale;
+  S.cx = 30 + availW / 2;
+  S.cy = height / 2;
+  buildPoints();
+}
+
+/* ---------- shapes: where the circles sit ---------- */
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit = (a) => { const l = Math.hypot(...a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+
+// Faces as lists of corner points (y points down on screen). Sphere is handled separately.
+function facesFor(shape, R) {
+  if (shape === 'cube') {
+    const a = R * 0.62, P = (x, y, z) => [x * a, y * a, z * a];
+    return [
+      [P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1)],
+      [P(1, -1, -1), P(-1, -1, -1), P(-1, 1, -1), P(1, 1, -1)],
+      [P(1, -1, 1), P(1, -1, -1), P(1, 1, -1), P(1, 1, 1)],
+      [P(-1, -1, -1), P(-1, -1, 1), P(-1, 1, 1), P(-1, 1, -1)],
+      [P(-1, -1, -1), P(1, -1, -1), P(1, -1, 1), P(-1, -1, 1)],
+      [P(-1, 1, 1), P(1, 1, 1), P(1, 1, -1), P(-1, 1, -1)],
+    ];
+  }
+  const b = R * 0.8, H = R * 1.45, by = H / 4, A = [0, by - H, 0];
+  const c = [[-b, by, -b], [b, by, -b], [b, by, b], [-b, by, b]];
+  return [[c[0], c[1], c[2], c[3]], [c[0], c[1], A], [c[1], c[2], A], [c[2], c[3], A], [c[3], c[0], A]];
+}
+
+// Fill one flat face with a staggered lattice of points that stay a circle's radius inside its edges.
+function facePoints(poly, d, r) {
+  let n = unit(cross(sub(poly[1], poly[0]), sub(poly[2], poly[0])));
+  const mid = poly.reduce((s, p) => [s[0] + p[0] / poly.length, s[1] + p[1] / poly.length, s[2] + p[2] / poly.length], [0, 0, 0]);
+  if (dot(n, mid) < 0) n = n.map((c) => -c); // the shape is centred on the origin, so outward = away from it
+  const u = unit(sub(poly[1], poly[0])), v = cross(n, u);
+  const q = poly.map((p) => [dot(sub(p, poly[0]), u), dot(sub(p, poly[0]), v)]);
+  const xs = q.map((p) => p[0]), ys = q.map((p) => p[1]);
+  const rowH = d * 0.866, m = r * 1.1, out = [];
+  const edgeDist = (px, py) => {
+    let best = Infinity, sign = false;
+    for (let i = 0; i < q.length; i++) {
+      const [ax, ay] = q[i], [bx, by] = q[(i + 1) % q.length];
+      const ex = bx - ax, ey = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / (ex * ex + ey * ey)));
+      best = Math.min(best, Math.hypot(px - ax - ex * t, py - ay - ey * t));
+      if ((ay > py) !== (by > py) && px < ((bx - ax) * (py - ay)) / (by - ay) + ax) sign = !sign;
+    }
+    return sign ? best : -best;
+  };
+  for (let j = 0, y = Math.min(...ys); y <= Math.max(...ys); j++, y += rowH) {
+    for (let x = Math.min(...xs) + (j % 2 ? d / 2 : 0); x <= Math.max(...xs); x += d) {
+      if (edgeDist(x, y) < m) continue;
+      out.push({
+        p: [poly[0][0] + u[0] * x + v[0] * y, poly[0][1] + u[1] * x + v[1] * y, poly[0][2] + u[2] * x + v[2] * y],
+        n, t1: u, t2: v,
+      });
+    }
+  }
+  return out;
+}
+
+function spherePoints(d) {
+  const n = Math.max(20, Math.round((4 * Math.PI * S.R * S.R) / (d * d * 0.866)));
+  const golden = Math.PI * (3 - Math.sqrt(5)), out = [];
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (2 * (i + 0.5)) / n, rad = Math.sqrt(1 - y * y), th = i * golden;
+    const nn = [Math.cos(th) * rad, y, Math.sin(th) * rad];
+    const ref = Math.abs(y) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const t1 = unit(cross(nn, ref));
+    out.push({ p: nn.map((c) => c * S.R), n: nn, t1, t2: cross(nn, t1) });
+  }
+  return out;
+}
+
+function buildPoints() {
+  if (!S.ready) return;
+  const r = S.size, d = r * 2.15;
+  const raw = S.shape === 'sphere' ? spherePoints(d) : facesFor(S.shape, S.R).flatMap((f) => facePoints(f, d, r));
+  const rnd = mulberry32(S.seed);
+  raw.forEach((q) => { q.rank = rnd(); });
+  raw.sort((a, b) => a.rank - b.rank); // density keeps a random share, so it thins out evenly
+  S.pts = raw.slice(0, Math.max(1, Math.round(raw.length * S.density))).map((q) => ({
+    hx: q.p[0], hy: q.p[1], hz: q.p[2], n: q.n, t1: q.t1, t2: q.t2,
+    ox: 0, oy: 0, oz: 0, vx: 0, vy: 0, vz: 0, // offset from home (world), its velocity
+    tx: 0, ty: 0, tz: 0,                      // lagging tail offset, for stretched circles
+    reach: 0.55 + rnd() * 0.9,
+    push: 0.5 + Math.pow(rnd(), 2.5) * 2.5,
+    jit: (rnd() - 0.5) * 2.4,
+    k: 0.05 + rnd() * 0.13,
+    damp: 0.6 + rnd() * 0.25,
+    rs: rnd(),
+    lag: 0.03 + rnd() * 0.08,
+  }));
+}
+
+/* ---------- motion ---------- */
+
+function stepPoint(p, facing) {
+  let ax = 0, ay = 0, az = 0; // target offset (world)
+  const c = toCam(p.hx, p.hy, p.hz), s = persp(c[2]);
+  if (facing > 0) {
+    // the nearest fingertip (or the mouse) in reach decides how this circle is pushed
+    const sx = S.cx + c[0] * s, sy = S.cy + c[1] * s;
+    let best = null, bd = Infinity;
+    for (const q of pointers) {
+      const d = Math.hypot(sx - q.x, sy - q.y);
+      if (d < bd) { bd = d; best = q; }
+    }
+    const Rr = S.radius * p.reach;
+    if (best && bd < Rr) {
+      const n = noise(p.hx * 0.012, p.hy * 0.012 + p.hz * 0.012, frameCount * 0.015);
+      const ang = Math.atan2(sy - best.y, sx - best.x) + (p.jit + (n - 0.5) * 3) * S.chaos;
+      const push = 1 + (p.push - 1) * S.chaos;
+      const dist = (((Rr - bd) * push + 14 * p.rs * S.chaos) * (0.6 + n * 0.8)) / s;
+      // away from the finger on screen, and lifted off the surface towards the viewer
+      [ax, ay, az] = toWorld(Math.cos(ang) * dist, Math.sin(ang) * dist, dist * 0.5 * (0.5 + S.chaos));
+    }
+  }
+  if (S.noiseOn) {
+    const k = 0.012 * (250 / S.R), t = frameCount * 0.008;
+    const zone = noise(p.hx * k * 0.4 + 500, p.hy * k * 0.4 + p.hz * k * 0.4, frameCount * 0.003);
+    const busy = Math.pow(Math.min(1, Math.max(0, (zone - 0.4) * 3.5)), 1.4);
+    const amp = (6 + 130 * busy) * (0.4 + S.chaos) * (S.R / 250);
+    ax += (noise(p.hx * k, p.hy * k, p.hz * k + t) - 0.5) * 2 * amp;
+    ay += (noise(p.hx * k + 100, p.hy * k, p.hz * k + t) - 0.5) * 2 * amp;
+    az += (noise(p.hx * k, p.hy * k + 100, p.hz * k + t) - 0.5) * 2 * amp;
+  }
+  p.vx = (p.vx + (ax - p.ox) * p.k) * p.damp;
+  p.vy = (p.vy + (ay - p.oy) * p.k) * p.damp;
+  p.vz = (p.vz + (az - p.oz) * p.k) * p.damp;
+  p.ox += p.vx; p.oy += p.vy; p.oz += p.vz;
+  const moved = Math.hypot(p.ox, p.oy, p.oz);
+  const lag = p.rs < S.stretch * 0.5 || (S.noiseOn && p.rs < 0.4 && moved > 12) ? p.lag : 0.6;
+  p.tx += (p.ox - p.tx) * lag;
+  p.ty += (p.oy - p.ty) * lag;
+  p.tz += (p.oz - p.tz) * lag;
+}
+
+/* ---------- shapes (used for both canvas and SVG export) ---------- */
+
+const f = (n) => Math.round(n * 100) / 100;
+
+function frameShapes() {
+  const out = [];
+  const r = S.size;
+  for (const p of S.pts) {
+    const facing = toCam(p.n[0], p.n[1], p.n[2])[2]; // > 0: this part of the surface faces the viewer
+    stepPoint(p, facing);
+    const hxw = p.hx + p.ox, hyw = p.hy + p.oy, hzw = p.hz + p.oz;
+    const c = toCam(hxw, hyw, hzw), s = persp(c[2]);
+    const X = S.cx + c[0] * s, Y = S.cy + c[1] * s, rr = r * s;
+    const tc = toCam(p.hx + p.tx, p.hy + p.ty, p.hz + p.tz), ts = persp(tc[2]);
+    const TX = S.cx + tc[0] * ts, TY = S.cy + tc[1] * ts;
+    const t = Math.min(1, Math.max(0, (facing + 0.2) / 0.55));
+    const alpha = 0.12 + 0.88 * t * t * (3 - 2 * t);
+    const len = Math.hypot(X - TX, Y - TY);
+    let d;
+    if (len > rr * 0.5) d = stadiumD(X, Y, TX, TY, rr);
+    else {
+      // circle lying flat on the surface, so it squashes into an ellipse towards the edge
+      d = '';
+      for (let i = 0; i < SEG; i++) {
+        const q = toCam(
+          hxw + r * (COS[i] * p.t1[0] + SIN[i] * p.t2[0]),
+          hyw + r * (COS[i] * p.t1[1] + SIN[i] * p.t2[1]),
+          hzw + r * (COS[i] * p.t1[2] + SIN[i] * p.t2[2]));
+        const qs = persp(q[2]);
+        d += (i ? 'L' : 'M') + f(S.cx + q[0] * qs) + ' ' + f(S.cy + q[1] * qs);
+      }
+      d += 'Z';
+    }
+    out.push({ d, alpha: f(alpha), z: c[2] });
+  }
+  return out.sort((a, b) => a.z - b.z);
+}
+
+// capsule between two screen points, with a line through the middle
+function stadiumD(x, y, tx, ty, r) {
+  const dx = x - tx, dy = y - ty, len = Math.hypot(dx, dy);
+  const nx = (-dy / len) * r, ny = (dx / len) * r;
+  const A = [tx + nx, ty + ny], B = [x + nx, y + ny], C = [x - nx, y - ny], D = [tx - nx, ty - ny];
+  return `M${f(A[0])} ${f(A[1])}L${f(B[0])} ${f(B[1])}A${f(r)} ${f(r)} 0 0 0 ${f(C[0])} ${f(C[1])}` +
+    `L${f(D[0])} ${f(D[1])}A${f(r)} ${f(r)} 0 0 0 ${f(A[0])} ${f(A[1])}Z` +
+    (len > r * 0.6 ? `M${f(tx)} ${f(ty)}L${f(x)} ${f(y)}` : '');
+}
+
+/* ---------- export ---------- */
+
+function videoFrameDataUrl() {
+  if (!video || video.readyState < 2) return null;
+  const w = Math.round(width / 2), h = Math.round(height / 2);
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const cx = cv.getContext('2d');
+  const v = videoRect(), k = 0.5;
+  cx.translate(w, 0);
+  cx.scale(-1, 1);
+  cx.drawImage(video, v.ox * k, v.oy * k, v.vw * v.sc * k, v.vh * v.sc * k);
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.fillStyle = `rgba(0,0,0,${1 - S.vidbright})`;
+  cx.fillRect(0, 0, w, h);
+  return cv.toDataURL('image/jpeg', 0.85);
+}
+
+function saveSvg() {
+  if (!S.ready) return;
+  const shapes = frameShapes();
+  const frame = S.vidsvg ? videoFrameDataUrl() : null;
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<rect width="100%" height="100%" fill="${S.col.bg}"/>` +
+    (frame ? `<image width="${width}" height="${height}" href="${frame}"/>` : '') +
+    `<g fill="none" stroke="${S.col.fill}" stroke-width="${S.thick}" stroke-linejoin="round">` +
+    shapes.map((sh) => `<path d="${sh.d}" stroke-opacity="${sh.alpha}"/>`).join('') + '</g></svg>';
+  deliverSvg(`${S.shape}-circles-${Date.now()}.svg`, svg);
+}
+
+// Inside Claude's artifact viewer plain downloads are blocked, so use its downloads capability when present.
+async function deliverSvg(filename, svg) {
+  try {
+    const dl = window.claude && (await window.claude.use('downloads'));
+    if (dl) {
+      await dl.save({ filename, data: svg });
+      return;
+    }
+  } catch (err) {
+    if (err && err.code === 'declined') return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- GUI ---------- */
+
+function buildGui() {
+  const $ = (id) => document.getElementById(id);
+
+  $('cam').addEventListener('click', startCamera);
+  $('nocam').addEventListener('click', () => { begin(); setStatus('camera off, using mouse'); });
+  document.querySelectorAll('[data-shape]').forEach((b) => b.addEventListener('click', () => {
+    S.shape = b.dataset.shape;
+    document.querySelectorAll('[data-shape]').forEach((o) => o.classList.toggle('on', o === b));
+    buildPoints();
+    b.blur();
+  }));
+  $('showtips').addEventListener('change', (e) => { S.showtips = e.target.checked; });
+  $('vidsvg').addEventListener('change', (e) => { S.vidsvg = e.target.checked; });
+  $('reshuffle').addEventListener('click', () => { S.seed = (Math.random() * 1e9) | 0; buildPoints(); });
+  $('save').addEventListener('click', (e) => { saveSvg(); e.target.blur(); });
+  $('noise').addEventListener('click', (e) => {
+    S.noiseOn = !S.noiseOn;
+    e.target.classList.toggle('on', S.noiseOn);
+    e.target.textContent = S.noiseOn ? 'Noise: on' : 'Noise';
+    e.target.blur();
+  });
+
+  const slider = (id, key, onChange) => {
+    const el = $(id), out = el.parentElement.querySelector('output');
+    const sync = () => { S[key] = +el.value; out.textContent = el.value; };
+    el.addEventListener('input', () => { sync(); if (onChange) onChange(); });
+    sync();
+  };
+  slider('thick', 'thick');
+  slider('size', 'size', buildPoints);
+  slider('density', 'density', buildPoints);
+  slider('scale', 'scale', () => { if (S.ready) layout(); });
+  slider('spin', 'spin');
+  slider('radius', 'radius');
+  slider('chaos', 'chaos');
+  slider('stretch', 'stretch');
+  slider('vidbright', 'vidbright');
+
+  const box = $('colors');
+  for (const [key, label] of COLOR_FIELDS) {
+    const row = document.createElement('div');
+    row.className = 'color';
+    const val = S.col[key];
+    row.innerHTML = `<span>${label}</span><input type="color" value="${val}"><input type="text" value="${val}" maxlength="7" spellcheck="false">`;
+    const [picker, text] = row.querySelectorAll('input');
+    const apply = (hex) => { S.col[key] = hex; picker.value = hex; text.value = hex; };
+    picker.addEventListener('input', () => apply(picker.value));
+    text.addEventListener('input', () => {
+      let t = text.value.trim();
+      if (t && t[0] !== '#') t = '#' + t;
+      if (/^#[0-9a-fA-F]{6}$/.test(t)) apply(t.toLowerCase());
+    });
+    box.appendChild(row);
+  }
+}
+
+/* ---------- utils ---------- */
+
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+</script>
+</body>
+</html>
