@@ -4,7 +4,7 @@
 const ASPECT = 1.27;            // every image on the poster is cropped to this width : height
 const IMAGE_DIR = window.IMAGE_DIR || 'images/';
 const EXTS = ['jpg', 'png', 'jpeg', 'webp', 'avif'];
-const FONT = '"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
+const FONT = '"Akkurat Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
 const INK = '#f3f0e8';
 // index-finger distance (fraction of camera width) that maps to the smallest / largest object
 const SPREAD_MIN = 0.05, SPREAD_MAX = 0.72;
@@ -400,4 +400,8 @@ function init() {
   requestAnimationFrame(frame);
 }
 
-(document.fonts && document.fonts.load ? document.fonts.load(font(16)).catch(() => {}) : Promise.resolve()).then(init);
+// wait for the poster font (Akkurat Mono if scale/fonts/ has it, else IBM Plex Mono) before the first frame
+const fontsReady = document.fonts && document.fonts.load
+  ? Promise.all([document.fonts.load('16px "Akkurat Mono"'), document.fonts.load('16px "IBM Plex Mono"')]).catch(() => {})
+  : Promise.resolve();
+Promise.race([fontsReady, new Promise((r) => setTimeout(r, 2500))]).then(init);

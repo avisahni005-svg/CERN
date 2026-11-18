@@ -1,8 +1,9 @@
 # Images
 
-Put the poster's photos here, one per object, named after the object.
+The poster's 55 photos, cut from the originals with the same crops as the poster PDF.
+To replace one, save a new file here with the same name.
 `.jpg`, `.png`, `.jpeg`, `.webp` and `.avif` all work, and any size or aspect ratio is fine: each photo is center-cropped to the poster's 1.27 : 1 frame.
-Until a photo is here, the object shows a coloured placeholder.
+If a photo is missing, that object shows a coloured placeholder.
 
 You can also try photos without copying them: drag them onto the page, or use **+ IMAGES** in the top bar.
 Dropped files are matched by name, so `higgs-boson.jpg`, `Higgs Boson.png` and `01.jpg` (the poster position) all work.

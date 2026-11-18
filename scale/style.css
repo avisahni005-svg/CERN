@@ -1,4 +1,5 @@
-:root { --ink: #f3f0e8; --dim: rgba(243, 240, 232, 0.5); --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+@font-face { font-family: "Akkurat Mono"; src: url("fonts/AkkuratMonoLL-Regular.otf") format("opentype"); font-weight: 400; font-display: swap; }
+:root { --ink: #f3f0e8; --dim: rgba(243, 240, 232, 0.5); --mono: "Akkurat Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
 html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overflow: hidden; font: 12px/1.3 var(--mono); }
 canvas { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: grab; }
 canvas:active { cursor: grabbing; }

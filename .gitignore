@@ -1,1 +1,5 @@
 node_modules/
+# licensed font: keep it local, the page falls back to IBM Plex Mono without it
+scale/fonts/*.otf
+scale/fonts/*.woff
+scale/fonts/*.woff2

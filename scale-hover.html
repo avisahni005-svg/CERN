@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap">
 <style>
-:root { --ink: #f3f0e8; --dim: rgba(243, 240, 232, 0.5); --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+@font-face { font-family: "Akkurat Mono"; src: url("scale/fonts/AkkuratMonoLL-Regular.otf") format("opentype"); font-weight: 400; font-display: swap; }
+:root { --ink: #f3f0e8; --dim: rgba(243, 240, 232, 0.5); --mono: "Akkurat Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
 html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overflow: hidden; font: 12px/1.3 var(--mono); }
 canvas { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: grab; }
 canvas:active { cursor: grabbing; }
@@ -839,7 +840,7 @@ const CollideMode = (() => {
 const ASPECT = 1.27;            // every image on the poster is cropped to this width : height
 const IMAGE_DIR = window.IMAGE_DIR || 'images/';
 const EXTS = ['jpg', 'png', 'jpeg', 'webp', 'avif'];
-const FONT = '"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
+const FONT = '"Akkurat Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
 const INK = '#f3f0e8';
 // index-finger distance (fraction of camera width) that maps to the smallest / largest object
 const SPREAD_MIN = 0.05, SPREAD_MAX = 0.72;
@@ -1235,7 +1236,11 @@ function init() {
   requestAnimationFrame(frame);
 }
 
-(document.fonts && document.fonts.load ? document.fonts.load(font(16)).catch(() => {}) : Promise.resolve()).then(init);
+// wait for the poster font (Akkurat Mono if scale/fonts/ has it, else IBM Plex Mono) before the first frame
+const fontsReady = document.fonts && document.fonts.load
+  ? Promise.all([document.fonts.load('16px "Akkurat Mono"'), document.fonts.load('16px "IBM Plex Mono"')]).catch(() => {})
+  : Promise.resolve();
+Promise.race([fontsReady, new Promise((r) => setTimeout(r, 2500))]).then(init);
 
 </script>
 </body>
