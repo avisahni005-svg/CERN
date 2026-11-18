@@ -1,11 +1,11 @@
 // Zoom: one framed image at a time. Moving to the next object, it grows out of the center of the current
-// image while both break into pixel blocks that merge into each other, sharpening again once it fills the frame.
+// image while both break into halftone dots that merge into each other, sharpening again once it fills the frame.
 // Going back (smaller), the same thing runs in reverse: the image shrinks back into the center.
 // The distance between the two index fingers sets the position: together = Higgs boson, apart = Coma cluster.
 
 const StackMode = (() => {
   const mk = () => { const c = document.createElement('canvas'); return { c, x: c.getContext('2d', { willReadFrequently: true }) }; };
-  const buf = { a: mk(), b: mk(), out: mk() };
+  const buf = { a: mk(), b: mk(), out: mk(), full: mk() };
   const hash = (x, y) => {
     let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -19,7 +19,7 @@ const StackMode = (() => {
     const maxBlock = Math.max(6, fw / 20);
     const b = Math.max(2, Math.round(2 + (maxBlock - 2) * Math.pow(Math.sin(Math.PI * p), 1.2)));
     const cols = Math.ceil(fw / b), rows = Math.ceil(fh / b);
-    Object.values(buf).forEach((s) => { if (s.c.width !== cols || s.c.height !== rows) { s.c.width = cols; s.c.height = rows; } });
+    [buf.a, buf.b, buf.out].forEach((s) => { if (s.c.width !== cols || s.c.height !== rows) { s.c.width = cols; s.c.height = rows; } });
 
     // A fills the frame; B grows from its center
     const s = Math.max(0.002, ease(p));
@@ -48,12 +48,41 @@ const StackMode = (() => {
         o[i] = src[i]; o[i + 1] = src[i + 1]; o[i + 2] = src[i + 2]; o[i + 3] = 255;
       }
     }
-    buf.out.x.putImageData(out, 0, 0);
-    ctx.save();
-    ctx.beginPath(); ctx.rect(fx, fy, fw, fh); ctx.clip();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(buf.out.c, fx, fy, cols * b, rows * b);
-    ctx.restore();
+    dots(ctx, o, cols, rows, b, fx, fy, fw, fh);
+  }
+
+  // each cell becomes a round dot of its colour, sized by its brightness (halftone), on black.
+  // While the cells are still small, a square-pixel layer underneath keeps the image from going dark.
+  function dots(ctx, cells, cols, rows, b, fx, fy, fw, fh) {
+    const n = cols * rows;
+    const rad = new Float32Array(n);
+    for (let k = 0; k < n; k++) {
+      const j = k * 4;
+      const lum = (cells[j] * 0.299 + cells[j + 1] * 0.587 + cells[j + 2] * 0.114) / 255;
+      rad[k] = b * 0.5 * (0.6 + 0.48 * lum);
+    }
+    const under = 1 - smooth(3, 11, b);
+    const f = buf.full;
+    if (f.c.width !== fw || f.c.height !== fh) { f.c.width = fw; f.c.height = fh; f.img = null; }
+    if (!f.img) f.img = f.x.createImageData(fw, fh);
+    const o = f.img.data;
+    for (let py = 0; py < fh; py++) {
+      const cy = Math.min(rows - 1, (py / b) | 0);
+      const dy = py + 0.5 - (cy + 0.5) * b;
+      const row = cy * cols;
+      for (let px = 0; px < fw; px++) {
+        const cx = Math.min(cols - 1, (px / b) | 0);
+        const dx = px + 0.5 - (cx + 0.5) * b;
+        const k = row + cx;
+        // anti-aliased edge: full inside the radius, fading over one pixel
+        const cov = clamp(rad[k] - Math.sqrt(dx * dx + dy * dy) + 0.5, 0, 1);
+        const m = cov + under * (1 - cov);
+        const j = k * 4, i = (py * fw + px) * 4;
+        o[i] = cells[j] * m; o[i + 1] = cells[j + 1] * m; o[i + 2] = cells[j + 2] * m; o[i + 3] = 255;
+      }
+    }
+    f.x.putImageData(f.img, 0, 0);
+    ctx.drawImage(f.c, fx, fy);
   }
 
   return {
