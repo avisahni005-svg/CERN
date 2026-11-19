@@ -1,0 +1,921 @@
+<title>CERN Macro</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: the Figma 1728px frame on a 9-column grid (189px columns, 26px left margin), scaled fluidly with container units. */
+:root {
+  --red: #ff0000;
+  --cream: #fafaed;
+  --ink: #000000;
+  --muted: #5c5a4f;
+  --panel: rgba(20, 20, 20, .94);
+  --panel-fg: #eeeeea;
+  --mono: 'Akkurat Mono LL', 'Akkurat Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --serif: 'EB Garamond', Garamond, 'Times New Roman', serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(--mono); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--red); }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+img { display: block; max-width: 100%; }
+[hidden] { display: none !important; }
+
+.page { container-type: inline-size; }
+.page > * { --u: calc(100cqw / 1728); }
+.wrap {
+  padding-left: max(16px, calc(var(--u) * 26), env(safe-area-inset-left, 0px));
+  padding-right: max(16px, calc(var(--u) * 26), env(safe-area-inset-right, 0px));
+}
+.g9 { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); }
+.mono-s { font-size: max(13px, calc(var(--u) * 18)); line-height: 1.25; }
+.dot { position: relative; }
+.dot::before {
+  content: ""; position: absolute; left: calc(var(--u) * -16); top: calc(var(--u) * 4);
+  width: max(5px, calc(var(--u) * 6.42)); aspect-ratio: 1; border-radius: 50%; background: var(--dot, var(--red));
+}
+
+/* red rule + tab */
+.rule { position: relative; height: 0; }
+.rule::before { content: ""; position: absolute; top: 0; right: 0; height: 2px; left: calc(var(--u) * var(--from, 26)); background: var(--red); }
+.rule::after { content: ""; position: absolute; top: 0; left: max(16px, calc(var(--u) * 26)); width: max(56px, calc(var(--u) * 163)); height: max(8px, calc(var(--u) * 14)); background: var(--red); }
+
+/* pills */
+.pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: max(28px, calc(var(--u) * 33)); padding: 0 max(12px, calc(var(--u) * 18));
+  border: 2px solid currentColor; border-radius: 23px;
+  font-size: max(12px, calc(var(--u) * 18)); letter-spacing: .02em; text-transform: uppercase; white-space: nowrap;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+
+/* ---------- header ---------- */
+.site-head { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--red); color: var(--cream); }
+.site-head .wrap {
+  display: flex; align-items: center; gap: calc(var(--u) * 26);
+  padding-top: max(18px, calc(var(--u) * 57)); padding-bottom: max(14px, calc(var(--u) * 26));
+}
+.logo { flex: 0 1 calc(var(--u) * 1108.6); min-width: 0; }
+.logo img { width: 100%; height: auto; aspect-ratio: 1108.56 / 30.82; }
+.nav { margin-left: auto; display: flex; gap: calc(var(--u) * 26); }
+.nav .pill { width: max(84px, calc(var(--u) * 149)); color: var(--cream); }
+.nav .pill:hover, .nav .pill[aria-current="page"] { background: var(--cream); color: var(--red); border-color: var(--cream); }
+.nav .lang { width: max(40px, calc(var(--u) * 60)); background: var(--ink); border-color: var(--ink); padding: 0; }
+.nav .lang:hover { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+
+/* ---------- routes ---------- */
+[data-view] { display: none; }
+[data-view].on { display: block; }
+
+/* ---------- hero ---------- */
+.hero { position: relative; height: max(560px, calc(var(--u) * 1001)); overflow: hidden; isolation: isolate; background: var(--cream); touch-action: pan-y; }
+.hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .45; mix-blend-mode: multiply; }
+.hero h1 {
+  position: absolute; left: max(16px, calc(var(--u) * 21)); bottom: calc(var(--u) * 26); margin: 0;
+  width: calc(var(--u) * 1109); max-width: calc(100% - 32px);
+  font: 400 max(54px, calc(var(--u) * 168)) / .774 var(--serif); letter-spacing: -.01em; color: var(--red);
+}
+#circles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: exclusion; }
+#ref { position: absolute; pointer-events: none; opacity: .5; display: none; }
+
+/* ---------- science rows ---------- */
+.science { padding-top: calc(var(--u) * 78); }
+.rows { display: grid; gap: calc(var(--u) * 78); padding-top: calc(var(--u) * 10); }
+.row { position: relative; align-items: start; }
+.row::after { content: ""; position: absolute; right: 0; top: calc(var(--u) * 4); width: max(5px, calc(var(--u) * 6.42)); aspect-ratio: 1; border-radius: 50%; background: var(--red); }
+.row h2 {
+  grid-column: 2 / 4; margin: 0; padding-right: calc(var(--u) * 25); text-align: center;
+  font: 400 max(20px, calc(var(--u) * 36)) / 1.2 var(--mono); color: var(--red); text-transform: uppercase;
+}
+.row figure { grid-column: 4 / 7; margin: 0; padding-right: calc(var(--u) * 25); }
+.row figure img { width: 100%; aspect-ratio: 542 / 302; object-fit: cover; margin-top: calc(var(--u) * 4); }
+.row p { grid-column: 7 / 10; margin: 0; padding-right: calc(var(--u) * 16); max-width: 60ch; }
+
+/* ---------- visit ---------- */
+.visit { padding-top: calc(var(--u) * 74); }
+.band { background: var(--red); color: var(--cream); }
+.band h2 { margin: 0; font: 400 max(40px, calc(var(--u) * 89.6)) / 1.19 var(--mono); letter-spacing: -.01em; text-transform: uppercase; height: max(48px, calc(var(--u) * 107)); display: flex; align-items: center; white-space: nowrap; }
+.visit-body { position: relative; padding-top: calc(var(--u) * 14); align-items: start; }
+.visit-body::after { content: ""; position: absolute; right: 0; top: calc(var(--u) * 18); width: max(5px, calc(var(--u) * 6.42)); aspect-ratio: 1; border-radius: 50%; background: var(--red); }
+.visit-body .cta { grid-column: 2 / 4; padding-right: calc(var(--u) * 26); }
+.visit-body .cta .pill { width: 100%; color: var(--red); }
+.visit-body .cta .pill:hover { background: var(--red); color: var(--cream); border-color: var(--red); }
+.visit-body figure { grid-column: 4 / 9; margin: 0; padding-right: calc(var(--u) * 25); }
+.visit-body figure img { width: 100%; aspect-ratio: 920 / 581; object-fit: cover; object-position: 50% 54%; }
+
+/* ---------- footer ---------- */
+.foot { background: var(--ink); color: var(--cream); margin-top: calc(var(--u) * 73); padding-bottom: calc(var(--u) * 21); --dot: var(--cream); }
+.foot .motto { position: relative; margin: 0; text-align: center; color: var(--red); font: 400 max(26px, calc(var(--u) * 89.6)) / 1.45 var(--mono); letter-spacing: -.01em; text-transform: uppercase; text-wrap: balance; }
+.foot .motto::before, .foot .motto::after { content: ""; position: absolute; top: calc(var(--u) * 34); width: max(5px, calc(var(--u) * 6.42)); aspect-ratio: 1; border-radius: 50%; background: var(--cream); }
+.foot .motto::before { left: max(8px, calc(var(--u) * 26)); }
+.foot .motto::after { right: max(8px, calc(var(--u) * 26)); }
+.foot-cols { padding-top: calc(var(--u) * 39); min-height: calc(var(--u) * 462); align-content: start; text-transform: uppercase; }
+.foot-cols > div, .foot-base > div { min-width: 0; }
+.foot ul { list-style: none; margin: 0; padding: 0; }
+.foot a:hover { color: var(--red); }
+.foot-base { text-transform: uppercase; }
+.c2 { grid-column: 2 / 4; } .c4 { grid-column: 4 / 5; } .c5 { grid-column: 5 / 6; }
+.c6 { grid-column: 6 / 8; } .c7 { grid-column: 7 / 8; } .c8 { grid-column: 8 / 9; } .c9 { grid-column: 9 / 10; }
+
+/* ---------- events ---------- */
+.ev-head { background: var(--ink); }
+.ev-head .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; min-height: calc(var(--u) * 120); padding-block: 8px; }
+.ev-head h1 { margin: 0; color: var(--red); font: 400 max(34px, calc(var(--u) * 89.6)) / 1.2 var(--mono); letter-spacing: -.01em; text-transform: uppercase; margin-left: calc(var(--u) * -6); }
+.toggle { display: flex; gap: calc(var(--u) * 27); }
+.toggle .pill { width: max(72px, calc(var(--u) * 107)); color: var(--cream); padding: 0; }
+.toggle .pill.on { background: var(--cream); color: var(--ink); border-color: var(--cream); }
+.toggle .pill:not(.on):hover { background: rgba(250, 250, 237, .16); }
+
+/* list */
+.day { padding-bottom: calc(var(--u) * 20); }
+.day .rule { --from: 180; }
+.day-body { padding-top: calc(var(--u) * 7); align-items: start; scroll-margin-top: 120px; }
+.day-date { grid-column: 2 / 3; }
+.day-name { grid-column: 3 / 4; }
+.day-date, .day-name, .ev-time { font-size: max(13px, calc(var(--u) * 20)); line-height: 1.25; padding-top: calc(var(--u) * 3); text-transform: uppercase; }
+.day-events { grid-column: 4 / 10; display: grid; gap: calc(var(--u) * 12); }
+.ev { display: grid; grid-template-columns: 3fr 1fr 2fr; align-items: start; text-align: left; width: 100%; }
+.ev-title { grid-column: 1 / 2; font: 600 max(17px, calc(var(--u) * 22)) / 1.15 var(--serif); padding-right: calc(var(--u) * 26); text-wrap: pretty; }
+.ev-time { grid-column: 3 / 4; padding-left: calc(var(--u) * 1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ev.main .ev-title { color: var(--red); }
+.ev .tag { display: inline-block; margin-left: .5em; font: 400 max(10px, calc(var(--u) * 13)) / 1 var(--mono); letter-spacing: .06em; text-transform: uppercase; vertical-align: .2em; border: 1.5px solid var(--red); color: var(--red); border-radius: 23px; padding: .3em .7em .25em; }
+.ev:hover .ev-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.ev-more { grid-column: 1 / 4; display: none; padding: calc(var(--u) * 8) 0 calc(var(--u) * 6); color: var(--muted); }
+.ev-more span { display: block; margin: 0 0 .4em; max-width: 64ch; }
+.ev[aria-expanded="true"] .ev-more { display: block; }
+
+/* main view */
+.feat { padding-top: calc(var(--u) * 36); align-items: start; row-gap: calc(var(--u) * 40); }
+.feat-meta { grid-column: 2 / 4; display: grid; gap: calc(var(--u) * 14); padding-right: calc(var(--u) * 26); align-content: start; }
+.eyebrow { color: var(--red); text-transform: uppercase; letter-spacing: .04em; }
+.big-date { font: 400 max(40px, calc(var(--u) * 89.6)) / 1 var(--mono); color: var(--red); letter-spacing: -.02em; text-transform: uppercase; margin: calc(var(--u) * 6) 0 0; }
+.feat-meta .kv { display: grid; gap: 2px; }
+.feat-meta .k { color: var(--muted); font-size: max(11px, calc(var(--u) * 14)); letter-spacing: .06em; text-transform: uppercase; }
+.feat-meta .pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: calc(var(--u) * 10); }
+.pill.red { color: var(--red); }
+a.pill.red:hover, button.pill.red:hover { background: var(--red); color: var(--cream); border-color: var(--red); }
+.pill.solid { background: var(--red); border-color: var(--red); color: var(--cream); }
+.feat-visual { grid-column: 4 / 10; position: relative; isolation: isolate; background: var(--cream); aspect-ratio: 1109 / 600; overflow: hidden; }
+.feat-visual img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .45; mix-blend-mode: multiply; filter: grayscale(1); }
+.feat-visual h2 {
+  position: absolute; left: calc(var(--u) * 21); right: calc(var(--u) * 21); bottom: calc(var(--u) * 22); margin: 0;
+  font: 400 max(34px, calc(var(--u) * 104)) / .86 var(--serif); letter-spacing: -.01em; color: var(--red); text-wrap: balance;
+}
+.feat-desc { grid-column: 4 / 7; margin: 0; padding-right: calc(var(--u) * 25); max-width: 62ch; }
+.feat-facts { grid-column: 7 / 10; margin: 0; display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 6) calc(var(--u) * 20); padding-right: calc(var(--u) * 16); }
+.feat-facts dt { color: var(--muted); text-transform: uppercase; }
+.feat-facts dd { margin: 0; }
+
+.sec { padding-top: calc(var(--u) * 96); }
+.sec-head { padding-top: calc(var(--u) * 10); align-items: baseline; }
+.sec-head h2 { grid-column: 2 / 5; margin: 0; font: 400 max(20px, calc(var(--u) * 36)) / 1.2 var(--mono); color: var(--red); text-transform: uppercase; }
+.sec-head p { grid-column: 7 / 10; margin: 0; color: var(--muted); }
+
+.cards { padding-top: calc(var(--u) * 40); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-left: calc(var(--u) * 189); }
+.card { text-align: left; display: grid; gap: calc(var(--u) * 12); align-content: start; padding-right: calc(var(--u) * 26); }
+.card img { width: 100%; aspect-ratio: 542 / 302; object-fit: cover; transition: filter .25s; }
+.card:hover img { filter: grayscale(1) contrast(1.1); }
+.card .when { color: var(--red); text-transform: uppercase; margin-top: calc(var(--u) * 6); }
+.card .h3 { margin: 0; font: 600 max(22px, calc(var(--u) * 34)) / 1.05 var(--serif); text-wrap: balance; }
+.card:hover .h3 { color: var(--red); }
+.card .where { color: var(--muted); }
+.card.is-feat { opacity: .35; }
+
+.glance { padding-top: calc(var(--u) * 40); }
+.gl-row { width: 100%; text-align: left; align-items: center; min-height: calc(var(--u) * 52); border-bottom: 1px solid rgba(255, 0, 0, .28); }
+.gl-row.hd { min-height: 0; padding-bottom: calc(var(--u) * 12); border-bottom: 2px solid var(--red); text-transform: uppercase; }
+.gl-name { grid-column: 1 / 5; padding-right: calc(var(--u) * 20); padding-left: calc(var(--u) * 189); font: 600 max(15px, calc(var(--u) * 22)) / 1.15 var(--serif); text-align: left; }
+.gl-name.main { color: var(--red); }
+.gl-row.hd .gl-name { font: inherit; color: var(--muted); }
+.gl-day { text-align: center; font-variant-numeric: tabular-nums; }
+.gl-day.today { color: var(--red); }
+.gl-bar {
+  height: max(24px, calc(var(--u) * 33)); border-radius: 23px; border: 2px solid var(--red); color: var(--red);
+  display: flex; align-items: center; justify-content: center; margin: 0 calc(var(--u) * 6);
+  font-size: max(10px, calc(var(--u) * 15)); white-space: nowrap; overflow: hidden; padding: 0 10px; font-variant-numeric: tabular-nums;
+}
+.gl-bar.main { background: var(--red); color: var(--cream); }
+.gl-row:hover .gl-bar:not(.main) { background: rgba(255, 0, 0, .1); }
+.to-list { padding-top: calc(var(--u) * 40); }
+.to-list .pill { grid-column: 2 / 4; }
+
+/* ---------- circle settings panel (temporary) ---------- */
+#gui-toggle {
+  position: fixed; z-index: 40; right: max(12px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  background: var(--panel); color: var(--panel-fg); border-radius: 18px; padding: 8px 14px; font: 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+}
+#gui {
+  position: fixed; z-index: 41; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 42px);
+  width: 268px; max-height: calc(100% - 180px); overflow: auto; padding: 14px;
+  background: var(--panel); color: var(--panel-fg); border-radius: 10px; font: 12px/1.3 system-ui, sans-serif;
+}
+#gui h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+#gui .sl { display: grid; grid-template-columns: 1fr auto; margin: 7px 0; }
+#gui .sl input { grid-column: 1 / 3; width: 100%; accent-color: #ff3b3b; }
+#gui output { color: #9a9a95; font-variant-numeric: tabular-nums; }
+#gui .ck { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
+#gui .rowc { display: grid; grid-template-columns: 1fr 28px 74px; gap: 6px; align-items: center; margin: 6px 0; }
+#gui input[type=color] { width: 28px; height: 22px; padding: 0; border: 0; background: none; }
+#gui input[type=text], #gui select, #gui textarea { width: 100%; background: #0d0d0d; color: var(--panel-fg); border: 1px solid #444; padding: 3px 4px; font: 11px/1.3 ui-monospace, monospace; border-radius: 3px; }
+#gui .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+#gui .btns button { background: #333; border: 1px solid #555; padding: 6px; border-radius: 6px; }
+#gui .btns button.on { background: var(--panel-fg); color: #000; }
+#gui textarea { margin-top: 8px; height: 74px; resize: vertical; }
+#gui .hint { color: #8a8a85; margin: 8px 0 0; }
+
+/* ---------- narrow screens ---------- */
+@media (max-width: 760px) {
+  .site-head .wrap { flex-wrap: wrap; row-gap: 12px; }
+  .logo { flex: 1 1 100%; }
+  .nav { margin-left: 0; gap: 8px; }
+  .g9 { grid-template-columns: minmax(0, 1fr); }
+  .g9 > * { grid-column: 1 / -1 !important; padding-right: 0 !important; }
+  .dot::before { left: -10px; }
+  .wrap { padding-left: max(24px, env(safe-area-inset-left, 0px)); }
+  .science, .visit, .sec { padding-top: 40px; }
+  .rows { gap: 40px; padding-top: 20px; }
+  .row { row-gap: 12px; }
+  .row h2 { text-align: left; }
+  .row::after, .visit-body::after { display: none; }
+  .visit-body { row-gap: 16px; padding-top: 22px; }
+  .foot { margin-top: 48px; padding-bottom: 20px; }
+  .foot-cols { grid-template-columns: 1fr 1fr; row-gap: 20px; min-height: 0; padding-block: 20px 36px; }
+  .foot-cols > .c2 { grid-column: 1 / -1 !important; }
+  .foot-cols > div:empty, .foot-base > div:empty { display: none; }
+  .foot-cols > div { grid-column: auto !important; }
+  .foot-base { row-gap: 8px; }
+  .day-body { row-gap: 4px; padding-top: 16px; }
+  .day-date, .day-name { display: inline; }
+  .day-events { gap: 14px; margin-top: 8px; }
+  .ev { grid-template-columns: 1fr; }
+  .ev-time { grid-row: 1; grid-column: 1; padding: 0 0 2px; color: var(--muted); font-size: 12px; }
+  .ev-title, .ev-more { grid-column: 1; }
+  .day { padding-bottom: 20px; }
+  .feat { padding-top: 22px; row-gap: 20px; }
+  .feat-visual { aspect-ratio: 4 / 5; }
+  .feat-facts { grid-template-columns: 1fr 2fr; }
+  .cards { grid-template-columns: minmax(0, 1fr); row-gap: 32px; padding-top: 20px; margin-left: 0; }
+  .card { padding-right: 0; }
+  .glance { padding-top: 16px; overflow-x: auto; }
+  .glance > .gl-row { padding-left: 0; }
+  .glance .gl-name { grid-column: 1 / 2 !important; padding-left: 0; font-size: 14px; }
+  .gl-row > .gl-day, .gl-row > .gl-bar { grid-column: var(--gm) !important; }
+  .to-list { padding-top: 24px; }
+  .sec-head { padding-top: 22px; row-gap: 4px; }
+  .foot .motto::before, .foot .motto::after { display: none; }
+  .glance > .gl-row { grid-template-columns: 170px repeat(5, 64px) !important; min-width: 500px; }
+  .glance .gl-name { font-size: 13px; padding-block: 6px; }
+  #gui { width: calc(100% - 24px); max-height: 55%; }
+}
+@media (min-width: 761px) {
+  .gl-row > .gl-day, .gl-row > .gl-bar { grid-column: var(--gc); }
+}
+</style>
+
+<div class="page">
+  <header class="site-head">
+    <div class="wrap">
+      <a class="logo" href="#home" aria-label="CERN home"><img src="assets/logo.svg" alt="CERN"></a>
+      <nav class="nav" aria-label="Primary">
+        <a class="pill" href="#about" data-nav="about">About</a>
+        <a class="pill" href="#events" data-nav="events">Events</a>
+        <button class="pill lang" type="button" aria-label="Language: English">EN</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===================== HOME ===================== -->
+  <main data-view="home" id="home-view">
+    <section class="hero" id="hero">
+      <img class="hero-img" src="assets/hero.jpg" alt="Close-up of an accelerator beam-pipe junction, bristling with flanges and bolts">
+      <h1>Uncover what<br>the universe<br>is made of and<br>how it works.</h1>
+      <img id="ref" src="assets/graphic.svg" alt="">
+      <canvas id="circles" aria-hidden="true"></canvas>
+    </section>
+
+    <section class="science" id="about">
+      <div class="rule"></div>
+      <div class="wrap rows">
+        <article class="row g9">
+          <h2 class="dot">Physics</h2>
+          <figure class="dot"><img src="assets/physics.jpg" alt="Event display of a Higgs boson candidate decay inside a detector" loading="lazy"></figure>
+          <p class="mono-s dot">CERN’s main focus is particle physics, but the physics program at the laboratory is much broader, ranging from nuclear to high-energy physics, from studies of antimatter to the possible effects of cosmic rays on clouds.</p>
+        </article>
+        <article class="row g9">
+          <h2 class="dot">Accelerators</h2>
+          <figure class="dot"><img src="assets/accelerators.jpg" alt="Looking down the bore of a detector toward the beam line" loading="lazy"></figure>
+          <p class="mono-s dot">An accelerator propels charged particles, such as protons or electrons, at high speeds, close to the speed of light. They are then smashed either onto a target or against other particles circulating in the opposite direction. By studying these collisions, physicists are able to probe the world of the infinitely small.</p>
+        </article>
+        <article class="row g9">
+          <h2 class="dot">Experiments</h2>
+          <figure class="dot"><img style="object-position: 50% 82%" src="assets/experiments.jpg" alt="The Compact Muon Solenoid detector opened for maintenance" loading="lazy"></figure>
+          <p class="mono-s dot">CERN is home to a wide range of experiments. Scientists from institutes all over the world form experimental collaborations to carry out a diverse research program, ensuring that CERN covers a wealth of topics in physics, from the Standard Model to supersymmetry and from exotic isotopes to cosmic rays.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="visit">
+      <div class="band"><div class="wrap"><h2>Visit CERN</h2></div></div>
+      <div class="rule"></div>
+      <div class="wrap g9 visit-body">
+        <div class="cta dot"><a class="pill" href="#events">Tour the accelerator complex</a></div>
+        <figure class="dot"><img src="assets/visit.jpg" alt="Aerial view of the Science Gateway tubes spanning the road at the Meyrin site, with the Globe behind" loading="lazy"></figure>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== EVENTS ===================== -->
+  <main data-view="events" id="events-view">
+    <section class="ev-head">
+      <div class="wrap">
+        <h1>Upcoming Events</h1>
+        <div class="toggle" role="tablist" aria-label="Event view">
+          <a class="pill" role="tab" href="#events" id="tab-main">Main</a>
+          <a class="pill" role="tab" href="#events-list" id="tab-list">List</a>
+        </div>
+      </div>
+    </section>
+
+    <div id="ev-main"></div>
+    <div id="ev-list"></div>
+  </main>
+
+  <footer class="foot">
+    <p class="motto">Look within to go beyond</p>
+    <div class="wrap">
+      <div class="g9 foot-cols mono-s">
+        <div class="c2 dot">Esplanade des Particules 1,<br>1211 Geneva 23, Switzerland</div>
+        <div class="c4 dot"></div>
+        <div class="c5 dot"><ul><li><a href="#about">About</a></li><li><a href="#home" class="ph">News</a></li><li><a href="#about">Science</a></li><li><a href="#events">Visit</a></li><li><a href="#home" class="ph">Contact</a></li></ul></div>
+        <div class="c6 dot"><ul><li>Careers</li><li>Business with CERN</li><li>Knowledge Transfer</li><li>CERN’s neighbors</li><li>CERN &amp; Society Foundation</li><li>Partnerships</li><li>CERN Alumni</li><li>Press room</li><li>CERN Courier</li><li>Arts at CERN</li></ul></div>
+        <div class="c8 dot"><ul><li>Instagram</li><li>LinkedIn</li><li>YouTube</li><li>Facebook</li></ul></div>
+        <div class="c9 dot"></div>
+      </div>
+      <div class="g9 foot-base mono-s">
+        <div class="c2 dot">© 1954–2026 CERN</div>
+        <div class="c4 dot"></div>
+        <div class="c7 dot">Copyright</div>
+        <div class="c8 dot">Privacy Policy</div>
+        <div class="c9 dot"></div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<button id="gui-toggle" type="button" aria-expanded="true" aria-controls="gui">Circles</button>
+<aside id="gui" aria-label="Circle settings">
+  <h3>Circle settings</h3>
+  <div class="sl"><label for="s-thick">Line thickness</label><output></output><input type="range" id="s-thick" min="0.5" max="8" step="0.1"></div>
+  <div class="sl"><label for="s-size">Circle size</label><output></output><input type="range" id="s-size" min="0.3" max="2.5" step="0.05"></div>
+  <div class="sl"><label for="s-scale">Graphic scale</label><output></output><input type="range" id="s-scale" min="0.4" max="1.8" step="0.02"></div>
+  <div class="sl"><label for="s-offX">Offset X</label><output></output><input type="range" id="s-offX" min="-700" max="700" step="5"></div>
+  <div class="sl"><label for="s-offY">Offset Y</label><output></output><input type="range" id="s-offY" min="-500" max="500" step="5"></div>
+  <div class="sl"><label for="s-radius">Hover radius</label><output></output><input type="range" id="s-radius" min="20" max="400" step="5"></div>
+  <div class="sl"><label for="s-chaos">Randomness</label><output></output><input type="range" id="s-chaos" min="0" max="1" step="0.05"></div>
+  <div class="sl"><label for="s-stretch">Stretch</label><output></output><input type="range" id="s-stretch" min="0" max="1" step="0.05"></div>
+  <div class="sl"><label for="s-spring">Return speed</label><output></output><input type="range" id="s-spring" min="0.2" max="2.5" step="0.05"></div>
+  <div class="sl"><label for="s-pad">Hit area around graphic</label><output></output><input type="range" id="s-pad" min="0.5" max="6" step="0.1"></div>
+  <label class="ck"><input type="checkbox" id="s-onlyOver"> React only over the graphic</label>
+  <label class="ck"><input type="checkbox" id="s-invert"> Invert where circles overlap</label>
+  <label class="ck"><input type="checkbox" id="s-showRef"> Show Figma graphic underneath</label>
+  <div class="rowc"><label for="s-color">Stroke</label><input type="color" id="s-color"><input type="text" id="s-colorTxt" maxlength="7" spellcheck="false" aria-label="Stroke hex"></div>
+  <div class="rowc" style="grid-template-columns:1fr 108px"><label for="s-blend">Blend</label>
+    <select id="s-blend"><option>exclusion</option><option>difference</option><option>normal</option><option>multiply</option><option>screen</option></select></div>
+  <div class="btns">
+    <button type="button" id="b-noise">Noise</button>
+    <button type="button" id="b-shuffle">Reshuffle</button>
+    <button type="button" id="b-copy">Copy settings</button>
+    <button type="button" id="b-reset">Reset</button>
+  </div>
+  <textarea id="s-out" readonly aria-label="Current settings as JSON"></textarea>
+  <p class="hint">Press G to hide this panel. Settings are kept in this browser until you reset them.</p>
+</aside>
+
+<script>
+/* =========================================================
+   Circles: ported from the CERN Hover sketch (cern-hover.html).
+   Home positions are the 260 circle centres of the Figma "Graphic" layer (1009 x 864).
+   ========================================================= */
+const HOMES = [[665.0,444.1],[692.1,301.0],[675.9,419.9],[636.3,443.4],[650.5,419.2],[662.1,394.0],[870.2,609.3],[608.4,538.1],[731.4,421.3],[675.4,323.7],[623.4,278.4],[662.3,301.8],[648.4,323.0],[677.0,276.0],[606.6,300.6],[897.3,611.8],[773.2,489.7],[512.9,419.8],[414.4,585.2],[538.9,420.5],[678.4,370.8],[579.4,443.7],[636.6,394.2],[648.8,370.2],[636.0,300.4],[689.3,397.0],[526.5,346.3],[856.4,585.6],[318.7,608.9],[609.6,441.5],[869.6,563.0],[746.8,490.1],[345.1,563.4],[457.0,228.6],[841.8,610.8],[800.1,588.2],[731.3,516.1],[623.0,418.1],[580.0,585.4],[596.0,515.2],[883.1,348.6],[733.6,275.6],[747.1,444.7],[869.8,421.3],[595.8,371.3],[939.4,394.5],[716.6,395.6],[911.9,394.2],[856.7,349.0],[745.7,347.1],[718.1,301.8],[717.8,349.0],[842.5,564.4],[609.9,395.1],[595.2,326.1],[596.2,277.7],[758.2,514.2],[483.3,228.5],[567.9,514.4],[815.1,608.4],[758.8,421.3],[594.0,563.6],[703.5,323.4],[595.5,658.4],[581.8,682.0],[539.6,324.0],[346.5,608.9],[855.6,635.9],[730.5,324.5],[565.3,419.9],[637.2,252.1],[706.2,274.8],[884.6,584.7],[883.6,394.1],[526.6,538.8],[510.2,323.4],[526.0,396.0],[553.5,586.4],[538.9,372.6],[525.6,681.1],[799.9,635.1],[208.9,420.3],[719.4,537.0],[746.1,539.4],[690.1,253.0],[716.8,489.6],[758.0,468.0],[375.4,609.8],[622.1,611.7],[610.0,634.9],[745.6,397.6],[441.4,205.1],[194.9,491.1],[554.8,683.5],[540.5,514.1],[623.5,182.5],[595.9,611.3],[898.5,421.0],[540.5,561.8],[815.2,420.1],[568.2,656.6],[980.3,370.8],[608.1,584.9],[193.9,394.4],[882.7,635.3],[690.3,347.2],[869.3,373.5],[290.7,179.4],[235.9,466.0],[828.7,585.5],[499.5,299.5],[621.7,563.9],[523.8,443.0],[510.9,707.3],[608.4,349.6],[249.5,491.4],[689.7,158.5],[827.6,634.0],[566.2,610.4],[222.1,442.0],[637.3,587.2],[262.3,561.0],[222.4,491.2],[166.5,445.2],[566.9,133.2],[705.2,372.0],[582.1,346.6],[540.7,656.5],[235.5,563.9],[291.1,561.3],[579.9,633.4],[291.1,608.5],[471.7,254.4],[209.5,467.3],[264.4,516.3],[386.3,302.1],[730.9,373.5],[345.1,467.9],[965.7,397.0],[485.6,752.4],[774.6,346.6],[608.0,158.9],[223.2,537.9],[180.7,466.9],[276.8,634.5],[540.0,612.0],[234.9,514.4],[978.4,610.9],[194.1,539.3],[882.1,539.5],[317.4,563.3],[912.5,537.4],[428.1,564.0],[772.6,397.3],[621.9,373.0],[758.1,323.0],[361.0,585.0],[141.4,444.4],[925.2,610.7],[482.9,180.0],[951.7,372.7],[787.7,467.9],[926.8,515.6],[510.8,373.2],[870.4,657.1],[510.2,658.6],[566.9,277.3],[262.5,182.9],[527.1,490.5],[801.6,539.7],[815.7,659.2],[484.2,278.3],[703.1,514.2],[554.9,394.9],[830.3,349.1],[499.6,395.9],[498.9,681.6],[623.0,322.8],[359.1,491.1],[497.9,203.4],[155.2,468.3],[800.5,442.1],[385.7,491.8],[429.6,182.9],[455.4,182.3],[414.2,537.9],[785.8,325.4],[870.4,322.8],[828.1,540.5],[399.5,277.0],[333.2,252.1],[124.3,419.1],[622.5,848.5],[194.9,443.2],[553.8,61.1],[430.5,515.4],[181.8,418.1],[802.6,491.9],[484.2,325.1],[896.8,323.4],[496.7,730.4],[758.3,371.8],[153.4,420.5],[180.8,564.5],[621.6,39.3],[304.0,634.8],[995.1,491.6],[138.1,396.2],[249.7,537.9],[538.0,465.7],[210.3,561.6],[277.0,538.9],[526.1,730.3],[844.3,372.0],[469.7,157.9],[292.5,229.4],[403.0,516.2],[112.7,443.1],[580.7,491.1],[924.7,418.2],[980.8,656.8],[153.1,513.6],[662.8,346.7],[470.5,205.4],[593.3,134.8],[554.0,301.7],[994.3,633.0],[649.7,610.2],[854.9,539.4],[553.6,348.5],[525.5,632.6],[609.3,680.4],[567.5,369.9],[111.6,349.6],[787.6,612.1],[13.9,610.1],[265.2,608.9],[182.4,371.1],[28.8,633.0],[720.2,253.1],[126.9,370.5],[373.8,182.2],[126.9,513.4],[469.0,397.1],[539.7,230.4],[788.3,514.8],[402.0,847.6],[719.6,443.1],[125.1,468.7],[525.7,586.5],[165.2,397.5],[429.2,850.1],[510.5,514.4],[595.9,418.6],[801.2,346.4],[44.8,610.4],[606.6,13.9],[249.6,632.5],[330.7,537.0],[814.5,561.3]];
+const G = { w: 1009, h: 864, x: 247.08, y: 42 };   // graphic box inside the 1728 x 1001 hero
+const R0 = 13.88, T0 = 2.13;                      // circle radius and ring width in the Figma file
+
+const DEFAULTS = {
+  thick: 2.1, size: 1, scale: 1, offX: 0, offY: 0, radius: 120, chaos: 0.7, stretch: 0.5, spring: 1,
+  pad: 2.2, onlyOver: true, invert: true, showRef: false, color: '#00ffff', blend: 'exclusion', noiseOn: false, seed: 1,
+};
+const STORE = 'cern-circles-v1';
+let S = { ...DEFAULTS };
+try { Object.assign(S, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} };
+
+const hero = document.getElementById('hero');
+const cv = document.getElementById('circles');
+const ctx = cv.getContext('2d');
+const refImg = document.getElementById('ref');
+const mouse = { x: 0, y: 0, on: false, hit: false };
+let W = 0, H = 0, K = 1, R = R0, circles = [], mask = null, frame = 0, running = false, visible = true;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* 3D Perlin noise, summed over 4 octaves and mapped to 0..1 like p5's noise() */
+const PERM = (() => {
+  const r = mulberry32(7), p = [...Array(256).keys()];
+  for (let i = 255; i > 0; i--) { const j = (r() * (i + 1)) | 0; [p[i], p[j]] = [p[j], p[i]]; }
+  return Uint8Array.from(p.concat(p));
+})();
+const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+const lerp = (a, b, t) => a + (b - a) * t;
+function grad(h, x, y, z) {
+  h &= 15; const u = h < 8 ? x : y, v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+function perlin(x, y, z) {
+  const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+  x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+  const u = fade(x), v = fade(y), w = fade(z), P = PERM;
+  const A = P[X] + Y, AA = P[A] + Z, AB = P[A + 1] + Z, B = P[X + 1] + Y, BA = P[B] + Z, BB = P[B + 1] + Z;
+  return lerp(lerp(lerp(grad(P[AA], x, y, z), grad(P[BA], x - 1, y, z), u),
+                   lerp(grad(P[AB], x, y - 1, z), grad(P[BB], x - 1, y - 1, z), u), v),
+              lerp(lerp(grad(P[AA + 1], x, y, z - 1), grad(P[BA + 1], x - 1, y, z - 1), u),
+                   lerp(grad(P[AB + 1], x, y - 1, z - 1), grad(P[BB + 1], x - 1, y - 1, z - 1), u), v), w);
+}
+function noise(x, y, z) {
+  let s = 0, a = 0.5, f = 1;
+  for (let i = 0; i < 4; i++) { s += a * perlin(x * f, y * f, z * f); a *= 0.5; f *= 2; }
+  return Math.min(1, Math.max(0, 0.5 + s * 0.8));
+}
+
+/* ---------- layout ---------- */
+function layout() {
+  const r = hero.getBoundingClientRect();
+  W = r.width; H = r.height;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  let k0, cx, cy;
+  if (W >= 760) {                         // desktop: same spot as the Figma frame
+    k0 = W / 1728;
+    cx = (G.x + G.w / 2) * k0; cy = (G.y + G.h / 2) * k0;
+  } else {                                // phone: fit the graphic across the width
+    k0 = (W / G.w) * 0.96;
+    cx = W / 2; cy = H * 0.4;
+  }
+  K = k0 * S.scale;
+  R = R0 * K * S.size;
+  const gx = cx - (G.w / 2) * K + S.offX * k0, gy = cy - (G.h / 2) * K + S.offY * k0;
+
+  const rnd = mulberry32(S.seed);
+  circles = HOMES.map(([hx0, hy0]) => {
+    const hx = gx + hx0 * K, hy = gy + hy0 * K;
+    return {
+      hx, hy, x: hx, y: hy, vx: 0, vy: 0, tx: hx, ty: hy,
+      reach: 0.55 + rnd() * 0.9,
+      push: 0.5 + Math.pow(rnd(), 2.5) * 2.5,
+      jit: (rnd() - 0.5) * 2.4,
+      k: 0.05 + rnd() * 0.13,
+      damp: 0.6 + rnd() * 0.25,
+      rs: rnd(),
+      lag: 0.03 + rnd() * 0.08,
+    };
+  });
+
+  // hit mask: cells within (pad x radius) of any circle centre count as "on the graphic"
+  const cell = 6, cols = Math.ceil(W / cell), rows = Math.ceil(H / cell), m = new Uint8Array(cols * rows);
+  const reach = R0 * K * S.pad, rc = Math.ceil(reach / cell);
+  for (const p of circles) {
+    const ci = Math.floor(p.hx / cell), cj = Math.floor(p.hy / cell);
+    for (let j = cj - rc; j <= cj + rc; j++) for (let i = ci - rc; i <= ci + rc; i++) {
+      if (i < 0 || j < 0 || i >= cols || j >= rows) continue;
+      if (Math.hypot((i + 0.5) * cell - p.hx, (j + 0.5) * cell - p.hy) <= reach) m[j * cols + i] = 1;
+    }
+  }
+  mask = { cell, cols, rows, m };
+
+  refImg.style.display = S.showRef ? 'block' : 'none';
+  Object.assign(refImg.style, { left: gx + 'px', top: gy + 'px', width: G.w * K + 'px', height: G.h * K + 'px' });
+  cv.style.mixBlendMode = S.blend;
+  draw();
+}
+
+function overGraphic(x, y) {
+  if (!mask) return false;
+  const i = Math.floor(x / mask.cell), j = Math.floor(y / mask.cell);
+  return i >= 0 && j >= 0 && i < mask.cols && j < mask.rows && mask.m[j * mask.cols + i] === 1;
+}
+
+/* ---------- motion (same rules as the sketch) ---------- */
+function step(p) {
+  let tx = p.hx, ty = p.hy;
+  const radius = S.radius * (K / S.scale); // hover radius is in Figma px, scaled with the page
+  if (mouse.hit) {
+    const dx = p.hx - mouse.x, dy = p.hy - mouse.y, d = Math.hypot(dx, dy);
+    const Rr = radius * p.reach;
+    if (d < Rr) {
+      const n = noise(p.hx * 0.012 / K, p.hy * 0.012 / K, frame * 0.015);
+      const ang = Math.atan2(dy, dx) + (p.jit + (n - 0.5) * 3) * S.chaos;
+      const push = 1 + (p.push - 1) * S.chaos;
+      const dist = ((Rr - d) * push + 14 * K * p.rs * S.chaos) * (0.6 + n * 0.8);
+      tx = p.hx + Math.cos(ang) * dist;
+      ty = p.hy + Math.sin(ang) * dist;
+    }
+  }
+  if (S.noiseOn && !reduced) {
+    const t = frame * 0.008;
+    const zone = noise(p.hx * 0.0025 / K + 500, p.hy * 0.0025 / K + 500, frame * 0.003);
+    const busy = Math.pow(Math.min(1, Math.max(0, (zone - 0.4) * 3.5)), 1.4);
+    const amp = (6 + 130 * busy) * (0.4 + S.chaos) * K;
+    tx += (noise(p.hx * 0.006 / K, p.hy * 0.006 / K, t) - 0.5) * 2 * amp;
+    ty += (noise(p.hx * 0.006 / K + 100, p.hy * 0.006 / K + 100, t) - 0.5) * 2 * amp;
+  }
+  const k = Math.min(0.6, p.k * S.spring);
+  p.vx = (p.vx + (tx - p.x) * k) * p.damp;
+  p.vy = (p.vy + (ty - p.y) * k) * p.damp;
+  p.x += p.vx; p.y += p.vy;
+  const lag = p.rs < S.stretch * 0.5 || (S.noiseOn && p.rs < 0.4 && Math.hypot(p.x - p.hx, p.y - p.hy) > 12 * K) ? p.lag : 0.6;
+  p.tx += (p.x - p.tx) * lag;
+  p.ty += (p.y - p.ty) * lag;
+}
+
+function circlePath(p) {
+  const r = R, path = new Path2D();
+  const dx = p.x - p.tx, dy = p.y - p.ty, len = Math.hypot(dx, dy);
+  if (len < 0.5) { path.arc(p.x, p.y, r, 0, Math.PI * 2); return path; }
+  // capsule: the circle drags a tail, with a line through the middle once it is long enough
+  const a = Math.atan2(dy, dx);
+  path.arc(p.x, p.y, r, a - Math.PI / 2, a + Math.PI / 2);
+  path.arc(p.tx, p.ty, r, a + Math.PI / 2, a + Math.PI * 1.5);
+  path.closePath();
+  if (len > r * 0.6) { path.moveTo(p.tx, p.ty); path.lineTo(p.x, p.y); }
+  return path;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalCompositeOperation = S.invert ? 'difference' : 'source-over';
+  ctx.lineWidth = Math.max(0.75, S.thick * (K / S.scale));
+  ctx.strokeStyle = S.color;
+  for (const p of circles) ctx.stroke(circlePath(p));
+  ctx.restore();
+}
+
+function tick() {
+  if (!running) return;
+  frame++;
+  mouse.hit = mouse.on && (!S.onlyOver || overGraphic(mouse.x, mouse.y));
+  circles.forEach(step);
+  draw();
+  requestAnimationFrame(tick);
+}
+function setRunning(on) {
+  if (on === running) return;
+  running = on;
+  if (on) requestAnimationFrame(tick);
+}
+
+hero.addEventListener('pointermove', (e) => {
+  const r = hero.getBoundingClientRect();
+  mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; mouse.on = true;
+});
+hero.addEventListener('pointerleave', () => { mouse.on = false; });
+hero.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') mouse.on = false; });
+new ResizeObserver(() => layout()).observe(hero);
+new IntersectionObserver(([en]) => { visible = en.isIntersecting; syncRunning(); }).observe(hero);
+
+/* ---------- settings panel ---------- */
+const $ = (id) => document.getElementById(id);
+const gui = $('gui'), guiToggle = $('gui-toggle');
+const NUMS = ['thick', 'size', 'scale', 'offX', 'offY', 'radius', 'chaos', 'stretch', 'spring', 'pad'];
+const RELAYOUT = new Set(['size', 'scale', 'offX', 'offY', 'pad']);
+function syncGui() {
+  NUMS.forEach((k) => { const el = $('s-' + k); el.value = S[k]; el.parentElement.querySelector('output').textContent = S[k]; });
+  ['onlyOver', 'invert', 'showRef'].forEach((k) => { $('s-' + k).checked = S[k]; });
+  $('s-color').value = S.color; $('s-colorTxt').value = S.color; $('s-blend').value = S.blend;
+  $('b-noise').classList.toggle('on', S.noiseOn); $('b-noise').textContent = S.noiseOn ? 'Noise: on' : 'Noise';
+  $('s-out').value = JSON.stringify(S, null, 1);
+}
+NUMS.forEach((k) => $('s-' + k).addEventListener('input', (e) => {
+  S[k] = +e.target.value; e.target.parentElement.querySelector('output').textContent = e.target.value;
+  if (RELAYOUT.has(k)) layout();
+  save(); $('s-out').value = JSON.stringify(S, null, 1);
+}));
+['onlyOver', 'invert', 'showRef'].forEach((k) => $('s-' + k).addEventListener('change', (e) => { S[k] = e.target.checked; layout(); save(); syncGui(); }));
+const setColor = (hex) => { S.color = hex; save(); syncGui(); draw(); };
+$('s-color').addEventListener('input', (e) => setColor(e.target.value));
+$('s-colorTxt').addEventListener('input', (e) => {
+  let t = e.target.value.trim(); if (t && t[0] !== '#') t = '#' + t;
+  if (/^#[0-9a-fA-F]{6}$/.test(t)) { S.color = t.toLowerCase(); $('s-color').value = S.color; save(); draw(); }
+});
+$('s-blend').addEventListener('change', (e) => { S.blend = e.target.value; cv.style.mixBlendMode = S.blend; save(); syncGui(); });
+$('b-noise').addEventListener('click', () => { S.noiseOn = !S.noiseOn; save(); syncGui(); });
+$('b-shuffle').addEventListener('click', () => { S.seed = (Math.random() * 1e9) | 0; layout(); save(); syncGui(); });
+$('b-reset').addEventListener('click', () => { S = { ...DEFAULTS }; save(); layout(); syncGui(); });
+$('b-copy').addEventListener('click', (e) => {
+  const txt = JSON.stringify(S), btn = e.currentTarget;
+  const done = (msg) => { btn.textContent = msg; setTimeout(() => { btn.textContent = 'Copy settings'; }, 1400); };
+  navigator.clipboard.writeText(txt).then(() => done('Copied'), () => { $('s-out').select(); done('Select + copy'); });
+});
+let guiOpen = innerWidth > 760;
+try { const v = localStorage.getItem(STORE + '-open'); if (v !== null) guiOpen = v === '1'; } catch (e) {}
+function setGui(open) {
+  guiOpen = open;
+  gui.hidden = !open || route().view !== 'home';
+  guiToggle.setAttribute('aria-expanded', String(open));
+  try { localStorage.setItem(STORE + '-open', open ? '1' : '0'); } catch (e) {}
+}
+guiToggle.addEventListener('click', () => setGui(!guiOpen));
+addEventListener('keydown', (e) => {
+  if ((e.key === 'g' || e.key === 'G') && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) setGui(!guiOpen);
+});
+
+/* =========================================================
+   Events data: week of 23–27 November 2026 (illustrative programme)
+   ========================================================= */
+const WEEK = [
+  { date: '2026-11-23', name: 'Monday' }, { date: '2026-11-24', name: 'Tuesday' }, { date: '2026-11-25', name: 'Wednesday' },
+  { date: '2026-11-26', name: 'Thursday' }, { date: '2026-11-27', name: 'Friday' },
+];
+const EVENTS = [
+  { id: 'fcc', days: [1], t: ['16:30', '17:30'], cat: 'Colloquium', main: true, feature: true, img: 'assets/accelerators.jpg',
+    title: 'Beyond the Higgs: the physics case for the Future Circular Collider',
+    venue: 'Main Auditorium, 500/1-001',
+    desc: 'The Future Circular Collider would run through a 91 km tunnel under the Geneva basin. This colloquium sets out what an electron–positron Higgs factory, followed by a 100 TeV proton collider, could measure, and what the feasibility study found on cost, geology and environmental impact.',
+    facts: [['Format', 'Colloquium + Q&A'], ['Language', 'English'], ['Webcast', 'Live on CDS'], ['Coffee', 'From 16:00, auditorium foyer']] },
+  { id: 'higgs', days: [1], t: ['11:00', '12:00'], cat: 'LHC Seminar', main: true, img: 'assets/physics.jpg',
+    title: 'Pushing the precision frontier: measuring the Higgs boson mass to better than 100 MeV with CMS',
+    venue: 'Main Auditorium, 500/1-001',
+    desc: 'CMS combines Run 2 and early Run 3 data in the four-lepton and diphoton channels. The talk walks through the calibration work behind the new precision.',
+    facts: [['Format', 'Seminar'], ['Experiment', 'CMS'], ['Webcast', 'Live on CDS'], ['Language', 'English']] },
+  { id: 'ls3', days: [3], t: ['09:00', '17:00'], cat: 'Site visit', main: true, img: 'assets/experiments.jpg',
+    title: 'LS3 open site: HL-LHC installation at Point 5',
+    venue: 'CMS, Point 5, Cessy (FR)',
+    desc: 'With the LHC stopped for Long Shutdown 3, teams at Point 5 are installing the High-Luminosity upgrades. Staff and registered users can go down to the cavern and see the new endcap calorimeter going in.',
+    facts: [['Access', 'CERN card + safety course'], ['Groups', 'Every 30 min'], ['Shuttle', 'From Bldg 33'], ['Shoes', 'Provided on site']] },
+  { id: 'night', days: [4], t: ['18:30', '22:00'], cat: 'Public event', main: true, img: 'assets/visit.jpg',
+    title: 'Antimatter Night at Science Gateway',
+    venue: 'Science Gateway, Bldg 1000',
+    desc: 'An evening of live demonstrations, short talks by physicists from the Antimatter Factory and late opening of the exhibitions. Open to the public, ages 12 and up.',
+    facts: [['Entry', 'Free, booking required'], ['Ages', '12+'], ['Languages', 'English, French'], ['Getting there', 'Tram 18, CERN stop']] },
+  { id: 'ml', days: [0, 1, 2], t: ['09:00', '20:00'], cat: 'Workshop', main: true, img: 'assets/hero.jpg',
+    title: '8th Inter-Experimental LHC Machine Learning Workshop',
+    venue: 'Council Chamber, 503/1-001',
+    desc: 'ATLAS, CMS, LHCb and ALICE compare methods for fast inference in triggers, anomaly detection and simulation surrogates ahead of the HL-LHC.',
+    facts: [['Format', 'Talks + hands-on sessions'], ['Registration', 'Closed, webcast open'], ['Language', 'English'], ['Organiser', 'IML forum']] },
+  { id: 'art', days: [0, 1, 2, 3, 4], t: ['08:00', '17:00'], cat: 'Arts at CERN', main: true, img: 'assets/visit.jpg',
+    title: 'No Matter Fields by Nata Malyu',
+    venue: 'Science Gateway, Pavilion 2',
+    desc: 'An Arts at CERN commission that turns magnetic field maps into a walk-through installation of light and sound. Free, no booking.',
+    facts: [['Entry', 'Free'], ['Until', '31 January 2027'], ['Format', 'Installation'], ['Access', 'Step-free']] },
+  { id: 'cas', days: [0, 1, 2, 3, 4], t: ['08:30', '21:00'], cat: 'Course', title: 'CAS course on "Circular e+ / e- colliders and light sources"', venue: 'Bldg 61, room 1-201',
+    desc: 'CERN Accelerator School: lattice design, beam–beam effects and synchrotron radiation for the next generation of lepton machines.' },
+  { id: 'soc', days: [0, 1, 2], t: ['08:30', '18:45'], cat: 'School', title: 'CERN School of Computing on IT Services', venue: 'Bldg 31, IT Amphitheatre',
+    desc: 'Lectures and labs on running large-scale services: storage, identity, monitoring and incident response.' },
+  { id: 'th', days: [1, 2], t: ['11:00', '16:00'], cat: 'Retreat', title: 'CERN Theory Department Retreat', venue: 'Bldg 4, TH Common Room',
+    desc: 'Internal two-day retreat for TH staff and fellows. Closed sessions.' },
+  { id: 'ocm', days: [1, 3], t: ['11:00', '12:00'], cat: 'Meeting', title: 'OCM Checkpoint Meeting', venue: 'Bldg 60, room 6-002',
+    desc: 'Operations coordination checkpoint for LS3 activities across the accelerator complex.' },
+  { id: 'newc', days: [0], t: ['10:00', '11:00'], cat: 'Induction', title: 'EP newcomers session', venue: 'Bldg 40, room S2-A01',
+    desc: 'Welcome session for new members of the Experimental Physics department.' },
+  { id: 'cosmo', days: [0], t: ['11:00', '12:00'], cat: 'TH Cosmo Coffee', title: 'Primordial black holes after the first year of Rubin', venue: 'Bldg 4, TH Common Room',
+    desc: 'Informal discussion of what the first Rubin Observatory data say about primordial black holes as dark matter.' },
+  { id: 'isolde', days: [0], t: ['14:00', '15:00'], cat: 'ISOLDE Seminar', title: 'Laser spectroscopy of neutron-rich tin isotopes', venue: 'Bldg 26, room 1-022',
+    desc: 'New charge-radius measurements from the COLLAPS beamline past the N = 82 shell closure.' },
+  { id: 'magnets', days: [1], t: ['14:00', '15:00'], cat: 'Accelerator Seminar', title: 'Nb3Sn magnets for the HL-LHC: lessons from the IT String test', venue: 'Bldg 30, room 7-018',
+    desc: 'What the inner-triplet string test taught us about quench protection and alignment before installation in LS3.' },
+  { id: 'topo', days: [2], t: ['10:00', '11:00'], cat: 'TH Seminar', title: 'What topology tells us about quark interactions', venue: 'Bldg 4, room 4-3-006',
+    desc: 'Topological charge on the lattice and what it implies for the strong CP problem.' },
+  { id: 'at1', days: [2], t: ['11:00', '12:00'], cat: 'Academic Training', title: 'Quantum computing for high-energy physics (1/2)', venue: 'Bldg 222, room R-001',
+    desc: 'Lecture series for physicists and engineers. No prior quantum computing background needed.' },
+  { id: 'openlab', days: [2], t: ['09:00', '17:30'], cat: 'Workshop', title: 'CERN openlab technical workshop', venue: 'Bldg 513, room 1-024',
+    desc: 'Industry partners and CERN teams report on joint projects in computing, storage and networking.' },
+  { id: 'hi', days: [2], t: ['16:00', '17:00'], cat: 'Heavy Ion Forum', title: 'Strangeness enhancement in small systems with ALICE', venue: 'Bldg 4, room 4-3-006',
+    desc: 'Recent ALICE results on strange-hadron yields in proton–proton and proton–lead collisions.' },
+  { id: 'det', days: [3], t: ['11:00', '12:00'], cat: 'Detector Seminar', title: '4D tracking: timing layers for the HL-LHC upgrades', venue: 'Bldg 13, room 2-005',
+    desc: 'How picosecond timing helps separate the 200 collisions per bunch crossing expected at the HL-LHC.' },
+  { id: 'cloud', days: [3], t: ['14:00', '15:00'], cat: 'EP Seminar', title: 'CLOUD: aerosol nucleation from iodine oxoacids', venue: 'Main Auditorium, 500/1-001',
+    desc: 'Results from the CLOUD chamber on how iodine from the oceans seeds new particles in the atmosphere.' },
+  { id: 'kt', days: [3], t: ['17:30', '19:00'], cat: 'Knowledge Transfer', title: 'Entrepreneurship meet-up: medical applications of accelerator technology', venue: 'IdeaSquare, Bldg 3179',
+    desc: 'Short pitches from start-ups using CERN technology in hadron therapy and medical imaging, followed by drinks.' },
+  { id: 'at2', days: [4], t: ['11:00', '12:00'], cat: 'Academic Training', title: 'Quantum computing for high-energy physics (2/2)', venue: 'Bldg 222, room R-001',
+    desc: 'Second lecture: variational algorithms and what today’s hardware can do for simulation.' },
+  { id: 'anti', days: [4], t: ['14:00', '15:00'], cat: 'EP Seminar', title: 'ALPHA and AEgIS: antimatter gravity, two years on', venue: 'Main Auditorium, 500/1-001',
+    desc: 'Where measurements of how antihydrogen falls stand today, and the precision expected after the ELENA upgrades.' },
+  { id: 'store', days: [4], t: ['15:00', '16:00'], cat: 'Computing Seminar', title: 'Exabyte-scale storage for the HL-LHC era', venue: 'Bldg 31, IT Amphitheatre',
+    desc: 'Plans for EOS and tape archiving as data volumes grow tenfold.' },
+];
+const byId = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hm = (s) => { const [h, m] = s.split(':').map(Number); return `${String(((h + 11) % 12) + 1).padStart(2, '0')}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+const span = (e) => `${hm(e.t[0])} - ${hm(e.t[1])}`;
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const dayNum = (i) => WEEK[i].date.slice(8);
+const monthOf = (i) => MONTHS[+WEEK[i].date.slice(5, 7) - 1];
+const whenShort = (e) => {
+  const a = e.days[0], b = e.days[e.days.length - 1];
+  const contiguous = e.days.length === b - a + 1;
+  const m = monthOf(a).slice(0, 3);
+  if (e.days.length === 1) return `${WEEK[a].name.slice(0, 3)} ${m} ${dayNum(a)}`;
+  return contiguous ? `${m} ${dayNum(a)}–${dayNum(b)}` : `${m} ${e.days.map(dayNum).join(' & ')}`;
+};
+
+let featured = 'fcc';
+const evMain = document.getElementById('ev-main');
+const evList = document.getElementById('ev-list');
+
+function renderMain() {
+  const f = byId[featured];
+  const cards = EVENTS.filter((e) => e.main && e.days.length === 1 && e.id !== featured).slice(0, 3);
+  const glance = EVENTS.filter((e) => e.main || e.days.length > 1)
+    .sort((a, b) => a.days[0] - b.days[0] || a.t[0].localeCompare(b.t[0]));
+  const todayIdx = WEEK.findIndex((d) => d.date === new Date().toISOString().slice(0, 10));
+  const total = EVENTS.reduce((n, e) => n + e.days.length, 0);
+  const a = f.days[0], b = f.days[f.days.length - 1];
+  const bigDate = f.days.length === 1 ? `${monthOf(a).slice(0, 3)} ${dayNum(a)}` : `${monthOf(a).slice(0, 3)} ${dayNum(a)}–${dayNum(b)}`;
+  const dayLabel = f.days.length === 1 ? WEEK[a].name : `${WEEK[a].name} to ${WEEK[b].name}`;
+
+  evMain.innerHTML = `
+    <section aria-labelledby="feat-title">
+      <div class="rule" style="--from:180"></div>
+      <div class="wrap g9 feat">
+        <div class="feat-meta mono-s dot">
+          <span class="eyebrow">Main event · ${esc(f.cat)}</span>
+          <p class="big-date">${bigDate}</p>
+          <div class="kv"><span class="k">Day</span><span>${dayLabel}</span></div>
+          <div class="kv"><span class="k">Time</span><span>${span(f)}</span></div>
+          <div class="kv"><span class="k">Where</span><span>${esc(f.venue)}</span></div>
+          <div class="pills">
+            <a class="pill solid" href="https://indico.cern.ch/" target="_blank" rel="noopener">View on Indico</a>
+            <a class="pill red" href="#events-list" data-day="${a}">In the list</a>
+          </div>
+        </div>
+        <div class="feat-visual dot">
+          <img src="${f.img}" alt="">
+          <h2 id="feat-title">${esc(f.title)}</h2>
+        </div>
+        <p class="feat-desc mono-s dot">${esc(f.desc)}</p>
+        <dl class="feat-facts mono-s dot">${(f.facts || []).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="more-title">
+      <div class="rule"></div>
+      <div class="wrap">
+        <div class="g9 sec-head mono-s">
+          <h2 id="more-title" class="dot">More main events</h2>
+          <p class="dot">Pick one to bring it to the top.</p>
+        </div>
+        <div class="cards">
+          ${cards.map((e) => `
+            <button class="card dot" type="button" data-feature="${e.id}">
+              <img src="${e.img}" alt="" loading="lazy">
+              <span class="when mono-s">${whenShort(e)} · ${hm(e.t[0])}</span>
+              <span class="h3">${esc(e.title)}</span>
+              <span class="where mono-s">${esc(e.cat)} · ${esc(e.venue)}</span>
+            </button>`).join('')}
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="glance-title">
+      <div class="rule"></div>
+      <div class="wrap">
+        <div class="g9 sec-head mono-s">
+          <h2 id="glance-title" class="dot">The week at a glance</h2>
+          <p class="dot">Filled bars are main events. Outlined bars run over several days.</p>
+        </div>
+        <div class="glance mono-s">
+          <div class="g9 gl-row hd">
+            <span class="gl-name">Event</span>
+            ${WEEK.map((d, i) => `<span class="gl-day${i === todayIdx ? ' today' : ''}" style="--gc:${i + 5} / ${i + 6}; --gm:${i + 2} / ${i + 3}">${d.name.slice(0, 3)} ${dayNum(i)}</span>`).join('')}
+          </div>
+          ${glance.map((e) => `
+            <button type="button" class="g9 gl-row" ${e.main ? `data-feature="${e.id}"` : `data-day="${e.days[0]}" data-open="${e.id}"`}>
+              <span class="gl-name${e.main ? ' main' : ''}">${esc(e.title)}</span>
+              ${contiguousRuns(e.days).map(([s, t]) => `<span class="gl-bar${e.main ? ' main' : ''}" style="--gc:${s + 5} / ${t + 6}; --gm:${s + 2} / ${t + 3}">${t > s ? span(e) : hm(e.t[0])}</span>`).join('')}
+            </button>`).join('')}
+        </div>
+        <div class="g9 to-list"><a class="pill red" href="#events-list">See all ${total} sessions</a></div>
+      </div>
+    </section>`;
+}
+
+function contiguousRuns(days) {
+  const runs = [];
+  for (const d of days) {
+    const last = runs[runs.length - 1];
+    if (last && d === last[1] + 1) last[1] = d; else runs.push([d, d]);
+  }
+  return runs;
+}
+
+function renderList() {
+  evList.innerHTML = WEEK.map((d, i) => {
+    const items = EVENTS.filter((e) => e.days.includes(i)).sort((a, b) => a.t[0].localeCompare(b.t[0]) || a.t[1].localeCompare(b.t[1]));
+    return `
+      <section class="day" aria-label="${d.name} ${dayNum(i)} ${monthOf(i)}">
+        <div class="rule"></div>
+        <div class="wrap g9 day-body" id="day-${i}">
+          <span class="day-date">${monthOf(i)} ${dayNum(i)}</span>
+          <span class="day-name">${d.name}</span>
+          <div class="day-events">
+            ${items.map((e) => `
+              <button class="ev${e.main ? ' main' : ''}" type="button" aria-expanded="false" data-ev="${e.id}">
+                <span class="ev-title">${esc(e.title)}${e.main ? '<span class="tag">Main</span>' : ''}</span>
+                <span class="ev-time">${span(e)}</span>
+                <span class="ev-more mono-s"><span>${esc(e.cat)} · ${esc(e.venue)}</span><span>${esc(e.desc)}</span></span>
+              </button>`).join('')}
+          </div>
+        </div>
+      </section>`;
+  }).join('');
+}
+
+/* ---------- routing: #home, #about, #events, #events-list ---------- */
+function route() {
+  const h = location.hash.slice(1);
+  if (h === 'events') return { view: 'events', sub: 'main' };
+  if (h === 'events-list') return { view: 'events', sub: 'list' };
+  return { view: 'home', anchor: h === 'about' ? 'about' : null };
+}
+let pendingDay = null, pendingOpen = null;
+function syncRunning() { setRunning(route().view === 'home' && visible); }
+function applyRoute() {
+  const r = route();
+  document.querySelectorAll('[data-view]').forEach((el) => el.classList.toggle('on', el.dataset.view === r.view));
+  document.querySelectorAll('[data-nav]').forEach((a) => {
+    const cur = (a.dataset.nav === 'events' && r.view === 'events') || (a.dataset.nav === 'about' && r.anchor === 'about');
+    if (cur) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  guiToggle.hidden = r.view !== 'home';
+  setGui(guiOpen);
+  if (r.view === 'events') {
+    evMain.hidden = r.sub !== 'main';
+    evList.hidden = r.sub !== 'list';
+    $('tab-main').classList.toggle('on', r.sub === 'main');
+    $('tab-list').classList.toggle('on', r.sub === 'list');
+    $('tab-main').setAttribute('aria-selected', String(r.sub === 'main'));
+    $('tab-list').setAttribute('aria-selected', String(r.sub === 'list'));
+    if (r.sub === 'list' && pendingDay !== null) {
+      const target = document.getElementById('day-' + pendingDay);
+      if (pendingOpen) {
+        const b = target && target.querySelector(`[data-ev="${pendingOpen}"]`);
+        if (b) b.setAttribute('aria-expanded', 'true');
+      }
+      requestAnimationFrame(() => target && target.scrollIntoView({ block: 'start' }));
+    } else {
+      scrollTo({ top: 0, behavior: 'instant' });
+    }
+    pendingDay = pendingOpen = null;
+  } else {
+    layout();
+    if (r.anchor) requestAnimationFrame(() => document.getElementById(r.anchor).scrollIntoView({ block: 'start' }));
+    else scrollTo({ top: 0, behavior: 'instant' });
+  }
+  syncRunning();
+}
+
+document.addEventListener('click', (e) => {
+  const feat = e.target.closest('[data-feature]');
+  if (feat) {
+    featured = feat.dataset.feature;
+    renderMain();
+    scrollTo({ top: 0, behavior: reduced ? 'instant' : 'smooth' });
+    return;
+  }
+  const dayLink = e.target.closest('[data-day]');
+  if (dayLink) {
+    pendingDay = +dayLink.dataset.day;
+    pendingOpen = dayLink.dataset.open || null;
+    if (location.hash === '#events-list') { e.preventDefault(); applyRoute(); }
+    else if (!dayLink.getAttribute('href')) location.hash = 'events-list';
+    return;
+  }
+  const ev = e.target.closest('.ev');
+  if (ev) { ev.setAttribute('aria-expanded', String(ev.getAttribute('aria-expanded') !== 'true')); return; }
+  const ph = e.target.closest('a.ph');
+  if (ph) e.preventDefault();
+});
+addEventListener('hashchange', applyRoute);
+
+renderMain();
+renderList();
+syncGui();
+applyRoute();
+</script>
