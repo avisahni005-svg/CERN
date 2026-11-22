@@ -72,7 +72,7 @@ body { background: #1a1a1a; }
   <div class="slider"><span>Impacts</span><input type="range" id="impacts" min="1" max="6" step="1"><output></output></div>
   <div class="slider"><span>Explosion</span><input type="range" id="fling" min="0.2" max="4" step="0.1"><output></output></div>
   <div class="slider"><span>Capsules</span><input type="range" id="caps" min="0" max="1" step="0.05"><output></output></div>
-  <div class="slider"><span>Capsule length</span><input type="range" id="caplen" min="0.2" max="1" step="0.05"><output></output></div>
+  <div class="slider"><span>Max capsule length</span><input type="range" id="caplen" min="0.1" max="2" step="0.05"><output></output></div>
 
   <div id="colors"></div>
 
@@ -101,14 +101,14 @@ const PALETTES = [
 
 // slider id -> [min, max] used when a new composition randomises its settings
 const RANGES = {
-  sphere: [260, 560], size: [14, 34], density: [0.6, 1], thick: [1.5, 4.5],
-  impacts: [1, 4], fling: [1.4, 3.8], caps: [0.25, 0.9], caplen: [0.45, 1],
+  sphere: [260, 560], size: [14, 34], density: [0.25, 0.6], thick: [1.5, 4.5],
+  impacts: [1, 3], fling: [0.8, 2.2], caps: [0.15, 0.5], caplen: [0.3, 0.9],
 };
 
 const S = {
   seed: 1,
   portrait: true,
-  sphere: 400, size: 22, density: 0.85, thick: 2.5, impacts: 2, fling: 1.8, caps: 0.6, caplen: 0.8,
+  sphere: 400, size: 22, density: 0.45, thick: 2.5, impacts: 2, fling: 1.4, caps: 0.3, caplen: 0.6,
   col: { bg: '#faf8ee', fill: '#ee3a2a' },
   W: 2400, H: 3600,
   shapes: [],
@@ -260,10 +260,10 @@ function compose() {
     if (facing > -0.25 && bd < Rr) {
       const nz = noise(p.h[0] * 0.012, p.h[1] * 0.012 + p.h[2] * 0.012, S.seed * 0.001);
       const ang = Math.atan2(sy - best.y, sx - best.x) + (jit + (nz - 0.5) * 3) * 0.7;
-      const dist = (((Rr - bd) * push * best.power + 14 * rs) * (0.6 + nz * 0.8) * (0.6 + S.fling * 0.4)) / s;
+      const dist = Math.min(S.R * 2, ((((Rr - bd) * push * best.power + 14 * rs) * (0.6 + nz * 0.8) * (0.6 + S.fling * 0.4)) / s));
       off = toWorld(Math.cos(ang) * dist, Math.sin(ang) * dist, dist * 0.5);
       // some thrown circles trail a tail back towards the sphere, which makes them a long capsule
-      const L = rnd() < S.caps ? S.caplen * (0.45 + rnd() * 0.55) : 0;
+      const L = rnd() < S.caps ? 0.5 + rnd() * 0.5 : 0;
       tail = off.map((v) => v * (1 - L));
     } else {
       tail = off;
@@ -282,7 +282,9 @@ function buildShape(p, off, tail, facing) {
   const c = toCam(hx, hy, hz), s = persp(c[2]);
   const X = S.cx + c[0] * s, Y = S.cy + c[1] * s, rr = r * s;
   const tc = toCam(p.h[0] + tail[0], p.h[1] + tail[1], p.h[2] + tail[2]), ts = persp(tc[2]);
-  const TX = S.cx + tc[0] * ts, TY = S.cy + tc[1] * ts;
+  let TX = S.cx + tc[0] * ts, TY = S.cy + tc[1] * ts;
+  const maxLen = S.caplen * S.R, span = Math.hypot(X - TX, Y - TY);
+  if (span > maxLen) { TX = X + ((TX - X) * maxLen) / span; TY = Y + ((TY - Y) * maxLen) / span; } // cap how long a capsule can get
   const t = Math.min(1, Math.max(0, (facing + 0.2) / 0.55));
   const alpha = 0.12 + 0.88 * t * t * (3 - 2 * t);
   let d;
