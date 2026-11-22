@@ -521,7 +521,7 @@ function saveSvg() {
     `<rect width="100%" height="100%" fill="${S.col.bg}"/>` +
     (frame ? `<image width="${width}" height="${height}" href="${frame}"/>` : '') +
     `<g fill="none" stroke="${S.col.fill}" stroke-width="${S.thick}" stroke-linejoin="round">` +
-    shapes.map((sh) => `<path d="${sh.d}" stroke-opacity="${sh.alpha}"/>`).join('') + '</g></svg>';
+    shapes.map((sh) => `<path d="${sh.d}" opacity="${sh.alpha}"/>`).join('') + '</g></svg>';
   deliverSvg(`${S.shape}-circles-${Date.now()}.svg`, svg);
 }
 

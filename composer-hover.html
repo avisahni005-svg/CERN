@@ -76,6 +76,8 @@ body { background: #1a1a1a; }
 
   <div id="colors"></div>
 
+  <label class="row"><input type="checkbox" id="flat"> Flatten transparency (solid colours)</label>
+
   <button id="save">Save SVG 24×36 in (S)</button>
   <p id="status" class="hint"></p>
 </aside>
@@ -322,13 +324,28 @@ function stadiumD(x, y, tx, ty, r) {
 
 /* ---------- export ---------- */
 
+// The faint far-side circles. Either a real opacity attribute (editors read it as object opacity), or,
+// when "Flatten transparency" is on, a solid colour already mixed with the paper so nothing can be lost.
+function fade(alpha) {
+  if (alpha >= 0.995) return '';
+  if (!$('flat').checked) return `opacity="${alpha}"`;
+  const a = hexToRgb(S.col.fill), b = hexToRgb(S.col.bg);
+  const mix = a.map((v, i) => Math.round(b[i] + (v - b[i]) * alpha));
+  return `stroke="#${mix.map((v) => v.toString(16).padStart(2, '0')).join('')}"`;
+}
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
 function saveSvg() {
   const inW = S.W / UNITS_PER_INCH, inH = S.H / UNITS_PER_INCH;
   const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<svg xmlns="http://www.w3.org/2000/svg" width="${inW}in" height="${inH}in" viewBox="0 0 ${S.W} ${S.H}">` +
     `<rect width="${S.W}" height="${S.H}" fill="${S.col.bg}"/>` +
     `<g fill="none" stroke="${S.col.fill}" stroke-width="${S.thick}" stroke-linejoin="round">` +
-    S.shapes.map((sh) => `<path d="${sh.d}" stroke-opacity="${sh.alpha}"/>`).join('') + '</g></svg>';
+    S.shapes.map((sh) => `<path d="${sh.d}" ${fade(sh.alpha)}/>`).join('') + '</g></svg>';
   deliverSvg(`composition-${S.seed}-${inW}x${inH}.svg`, svg);
 }
 

@@ -304,7 +304,7 @@ function saveSvg() {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<rect width="100%" height="100%" fill="${S.col.bg}"/>` +
     `<g fill="none" stroke="${S.col.fill}" stroke-width="${S.thick}" stroke-linejoin="round">` +
-    shapes.map((sh) => `<path d="${sh.d}" stroke-opacity="${sh.alpha}"/>`).join('') + '</g></svg>';
+    shapes.map((sh) => `<path d="${sh.d}" opacity="${sh.alpha}"/>`).join('') + '</g></svg>';
   deliverSvg(`sphere-circles-${Date.now()}.svg`, svg);
 }
 
