@@ -333,21 +333,28 @@ function frameShapes() {
     let d;
     if (len > rr * 0.5) d = stadiumD(X, Y, TX, TY, rr);
     else {
-      // circle lying flat on the surface, so it squashes into an ellipse towards the edge
-      d = '';
-      for (let i = 0; i < SEG; i++) {
-        const q = toCam(
-          hxw + r * (COS[i] * p.t1[0] + SIN[i] * p.t2[0]),
-          hyw + r * (COS[i] * p.t1[1] + SIN[i] * p.t2[1]),
-          hzw + r * (COS[i] * p.t1[2] + SIN[i] * p.t2[2]));
-        const qs = persp(q[2]);
-        d += (i ? 'L' : 'M') + f(S.cx + q[0] * qs) + ' ' + f(S.cy + q[1] * qs);
-      }
-      d += 'Z';
+      // circle lying flat on the surface. Its outline is the image of a circle under the projection, so
+      // draw it as four cubic curves from two projected axes: a smooth ellipse, not a polygon.
+      const pa = toCam(hxw + r * p.t1[0], hyw + r * p.t1[1], hzw + r * p.t1[2]), sa = persp(pa[2]);
+      const pb = toCam(hxw + r * p.t2[0], hyw + r * p.t2[1], hzw + r * p.t2[2]), sb = persp(pb[2]);
+      d = ellipseD(X, Y, S.cx + pa[0] * sa - X, S.cy + pa[1] * sa - Y, S.cx + pb[0] * sb - X, S.cy + pb[1] * sb - Y);
     }
     out.push({ d, alpha: f(alpha), z: c[2] });
   }
   return out.sort((a, b) => a.z - b.z);
+}
+
+// ellipse centred on (x, y) with conjugate semi-axes a and b (screen vectors), as four cubic Béziers
+function ellipseD(x, y, ax, ay, bx, by) {
+  const k = 0.5523;
+  const P0 = [x + ax, y + ay], P1 = [x + bx, y + by], P2 = [x - ax, y - ay], P3 = [x - bx, y - by];
+  const pt = (q) => f(q[0]) + ' ' + f(q[1]);
+  const add = (q, vx, vy, m) => [q[0] + vx * m, q[1] + vy * m];
+  return `M${pt(P0)}` +
+    `C${pt(add(P0, bx, by, k))} ${pt(add(P1, ax, ay, k))} ${pt(P1)}` +
+    `C${pt(add(P1, ax, ay, -k))} ${pt(add(P2, bx, by, k))} ${pt(P2)}` +
+    `C${pt(add(P2, bx, by, -k))} ${pt(add(P3, ax, ay, -k))} ${pt(P3)}` +
+    `C${pt(add(P3, ax, ay, k))} ${pt(add(P0, bx, by, -k))} ${pt(P0)}Z`;
 }
 
 // capsule between two screen points, with a line through the middle
