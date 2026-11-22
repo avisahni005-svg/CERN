@@ -161,10 +161,10 @@
 </svg>
 <script>
 // ---- timing (seconds) -------------------------------------------------
-const HOLD  = 1.2;   // still time with a box parked in the centre
+const HOLD  = 1.0;   // gap before the top box sets off (centre box stays fully still ~1.4s)
 const MOVE  = 1.6;   // travel time from one slot to the next
-const STAG  = 0.06;  // tiny cascade: the band higher up leads, lower ones follow
-const SEG   = 3.0;   // one step = hold + move (+ stagger headroom)
+const STAG  = 0.18;  // delay between boxes: the higher box leads, each lower one follows
+const SEG   = 3.2;   // one step = hold + move + cascade headroom
 const DURATION = SEG * 3;          // three steps -> every box gets the centre once
 const LEAD_MAX = 46;               // extra leading (px) at the peak of the move
 
