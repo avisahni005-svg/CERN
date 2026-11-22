@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CERN Composer</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+</head>
+<body>
+<div id="stage"></div>
+<aside id="panel">
+  <h1>Composer</h1>
+
+  <button id="gen" type="button">Generate (space)</button>
+  <div class="seedrow"><input type="text" id="seed" spellcheck="false" maxlength="10"><span>seed</span></div>
+  <label class="row"><input type="checkbox" id="lock"> Lock settings (new seed only)</label>
+
+  <div class="seg2">
+    <button id="o-portrait" class="on">24 × 36</button>
+    <button id="o-landscape">36 × 24</button>
+  </div>
+
+  <div class="slider"><span>Sphere size</span><input type="range" id="sphere" min="150" max="800" step="10"><output></output></div>
+  <div class="slider"><span>Circle size</span><input type="range" id="size" min="8" max="70" step="1"><output></output></div>
+  <div class="slider"><span>Density</span><input type="range" id="density" min="0.2" max="1" step="0.01"><output></output></div>
+  <div class="slider"><span>Line weight</span><input type="range" id="thick" min="0.5" max="10" step="0.5"><output></output></div>
+  <div class="slider"><span>Impacts</span><input type="range" id="impacts" min="1" max="6" step="1"><output></output></div>
+  <div class="slider"><span>Explosion</span><input type="range" id="fling" min="0.2" max="4" step="0.1"><output></output></div>
+  <div class="slider"><span>Capsules</span><input type="range" id="caps" min="0" max="1" step="0.05"><output></output></div>
+  <div class="slider"><span>Capsule length</span><input type="range" id="caplen" min="0.2" max="1" step="0.05"><output></output></div>
+
+  <div id="colors"></div>
+
+  <button id="save">Save SVG 24×36 in (S)</button>
+  <p id="status" class="hint"></p>
+</aside>
+<script src="sketch.js"></script>
+</body>
+</html>

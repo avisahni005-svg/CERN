@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CERN Composer</title>
+<style>
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font: 13px/1.3 system-ui, sans-serif; }
+canvas { display: block; }
+#panel {
+  position: fixed; top: 12px; right: 12px; width: 236px; padding: 14px;
+  background: rgba(24,24,24,.92); color: #eee; border-radius: 10px; z-index: 2;
+  max-height: calc(100% - 48px); overflow: auto;
+}
+h1 { font-size: 14px; margin: 0 0 10px; letter-spacing: .04em; text-transform: uppercase; }
+.file { display: block; margin-bottom: 8px; }
+.file input { display: block; margin-top: 4px; width: 100%; color: #aaa; }
+.row { display: block; margin: 6px 0; }
+.seg { display: flex; margin: 10px 0; }
+.seg button { flex: 1; }
+button { background: #333; color: #eee; border: 1px solid #555; padding: 6px 8px; cursor: pointer; }
+button.on { background: #eee; color: #000; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+#save, #noise, #reshuffle { width: 100%; border-radius: 6px; margin-top: 8px; }
+.slider { display: grid; grid-template-columns: 1fr auto; margin: 8px 0; }
+.slider input { grid-column: 1 / 3; width: 100%; }
+.slider output { color: #999; }
+.color { display: grid; grid-template-columns: 1fr 28px 74px; gap: 6px; align-items: center; margin: 5px 0; }
+.color input[type=color] { width: 28px; height: 22px; padding: 0; border: 0; background: none; }
+.color input[type=text] { width: 100%; box-sizing: border-box; background: #111; color: #eee; border: 1px solid #444; padding: 3px 4px; font-family: monospace; }
+.hint { color: #888; margin: 10px 0 0; }
+kbd { background: #333; border-radius: 3px; padding: 0 4px; }
+body.empty #empty { display: grid; }
+body.empty #panel { display: none; }
+#empty { display: none; position: fixed; inset: 0; z-index: 1; place-content: center; justify-items: center; gap: 10px; color: #777; font-size: 11px; letter-spacing: .08em; }
+#empty label, #empty button { cursor: pointer; color: inherit; background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit; }
+#empty label:hover, #empty button:hover { color: #ccc; }
+canvas { cursor: grab; }
+canvas { cursor: default; }
+body { background: #1a1a1a; }
+#stage { position: fixed; inset: 0; display: grid; place-items: center; padding-right: 300px; box-sizing: border-box; }
+#paper { box-shadow: 0 6px 30px rgba(0,0,0,.5); }
+.seedrow { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin: 8px 0; align-items: center; }
+.seedrow input[type=text] { width: 100%; box-sizing: border-box; background: #111; color: #eee; border: 1px solid #444; padding: 4px 6px; font-family: monospace; }
+#gen { width: 100%; border-radius: 6px; margin: 6px 0; padding: 10px; background: #eee; color: #000; font-weight: 600; }
+.seg2 { display: flex; margin: 8px 0; }
+.seg2 button { flex: 1; border-radius: 0; }
+.seg2 button:first-child { border-radius: 6px 0 0 6px; }
+.seg2 button:last-child { border-radius: 0 6px 6px 0; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+</head>
+<body>
+<div id="stage"></div>
+<aside id="panel">
+  <h1>Composer</h1>
+
+  <button id="gen" type="button">Generate (space)</button>
+  <div class="seedrow"><input type="text" id="seed" spellcheck="false" maxlength="10"><span>seed</span></div>
+  <label class="row"><input type="checkbox" id="lock"> Lock settings (new seed only)</label>
+
+  <div class="seg2">
+    <button id="o-portrait" class="on">24 × 36</button>
+    <button id="o-landscape">36 × 24</button>
+  </div>
+
+  <div class="slider"><span>Sphere size</span><input type="range" id="sphere" min="150" max="800" step="10"><output></output></div>
+  <div class="slider"><span>Circle size</span><input type="range" id="size" min="8" max="70" step="1"><output></output></div>
+  <div class="slider"><span>Density</span><input type="range" id="density" min="0.2" max="1" step="0.01"><output></output></div>
+  <div class="slider"><span>Line weight</span><input type="range" id="thick" min="0.5" max="10" step="0.5"><output></output></div>
+  <div class="slider"><span>Impacts</span><input type="range" id="impacts" min="1" max="6" step="1"><output></output></div>
+  <div class="slider"><span>Explosion</span><input type="range" id="fling" min="0.2" max="4" step="0.1"><output></output></div>
+  <div class="slider"><span>Capsules</span><input type="range" id="caps" min="0" max="1" step="0.05"><output></output></div>
+  <div class="slider"><span>Capsule length</span><input type="range" id="caplen" min="0.2" max="1" step="0.05"><output></output></div>
+
+  <div id="colors"></div>
+
+  <button id="save">Save SVG 24×36 in (S)</button>
+  <p id="status" class="hint"></p>
+</aside>
+<script>
+// Composer — p5.js sketch.
+// Builds a random poster composition from a sphere of circles: the sphere is hit by a few random impacts that
+// blow circles out of it, and some of the thrown circles stretch into long capsules. Every composition comes
+// from a seed. The poster is 24 x 36 in (2400 x 3600 units, 100 units per inch). Press "S" to save it as an SVG.
+
+const UNITS_PER_INCH = 100;
+const SEG = 20;
+const PANEL_W = 300;
+
+const PALETTES = [
+  { bg: '#faf8ee', fill: '#ee3a2a' },
+  { bg: '#0d0d0d', fill: '#ffffff' },
+  { bg: '#f2efe6', fill: '#1a1a1a' },
+  { bg: '#1c2a6b', fill: '#f4efe1' },
+  { bg: '#e8e1d0', fill: '#2a47d6' },
+  { bg: '#111111', fill: '#ff4d2e' },
+  { bg: '#d9e4d2', fill: '#1d3b2a' },
+];
+
+// slider id -> [min, max] used when a new composition randomises its settings
+const RANGES = {
+  sphere: [260, 560], size: [14, 34], density: [0.6, 1], thick: [1.5, 4.5],
+  impacts: [1, 4], fling: [1.4, 3.8], caps: [0.25, 0.9], caplen: [0.45, 1],
+};
+
+const S = {
+  seed: 1,
+  portrait: true,
+  sphere: 400, size: 22, density: 0.85, thick: 2.5, impacts: 2, fling: 1.8, caps: 0.6, caplen: 0.8,
+  col: { bg: '#faf8ee', fill: '#ee3a2a' },
+  W: 2400, H: 3600,
+  shapes: [],
+  yaw: 0, pitch: 0, R: 400, cx: 0, cy: 0,
+};
+let view = 1; // on-screen pixels per poster unit
+
+const COLOR_FIELDS = [['bg', 'Paper'], ['fill', 'Ink']];
+
+/* ---------- p5 ---------- */
+
+function setup() {
+  const c = createCanvas(100, 100);
+  c.id('paper');
+  c.parent('stage');
+  noLoop();
+  buildGui();
+  generate(true);
+}
+
+function windowResized() {
+  fit();
+  redraw();
+}
+
+function draw() {
+  const ctx = drawingContext;
+  const pd = pixelDensity();
+  ctx.setTransform(pd * view, 0, 0, pd * view, 0, 0);
+  ctx.fillStyle = S.col.bg;
+  ctx.fillRect(0, 0, S.W, S.H);
+  ctx.strokeStyle = S.col.fill;
+  ctx.lineWidth = S.thick;
+  ctx.lineJoin = 'round';
+  for (const sh of S.shapes) {
+    ctx.globalAlpha = sh.alpha;
+    ctx.stroke(new Path2D(sh.d));
+  }
+  ctx.globalAlpha = 1;
+}
+
+function keyPressed() {
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (key === 's' || key === 'S') { saveSvg(); return false; }
+  if (key === ' ') { generate(false); return false; }
+}
+
+function fit() {
+  S.W = (S.portrait ? 24 : 36) * UNITS_PER_INCH;
+  S.H = (S.portrait ? 36 : 24) * UNITS_PER_INCH;
+  const availW = Math.max(200, windowWidth - PANEL_W - 60), availH = windowHeight - 60;
+  view = Math.min(availW / S.W, availH / S.H);
+  resizeCanvas(Math.round(S.W * view), Math.round(S.H * view));
+}
+
+/* ---------- 3D helpers ---------- */
+
+function toCam(x, y, z) {
+  const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+  return [x1, y * cp - z1 * sp, y * sp + z1 * cp];
+}
+
+function toWorld(x, y, z) {
+  const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const y1 = y * cp + z * sp, z1 = -y * sp + z * cp;
+  return [x * cy - z1 * sy, y1, x * sy + z1 * cy];
+}
+
+const persp = (z) => (S.R * 3.2) / (S.R * 3.2 - z);
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit = (a) => { const l = Math.hypot(...a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+
+/* ---------- composition ---------- */
+
+// New seed (or the typed one), optionally with freshly randomised settings and palette.
+function generate(first) {
+  const seedEl = document.getElementById('seed');
+  const typed = parseInt(seedEl.value, 10);
+  S.seed = first && Number.isFinite(typed) ? typed : Math.floor(Math.random() * 1e9);
+  if (first && !Number.isFinite(typed)) S.seed = Math.floor(Math.random() * 1e9);
+  seedEl.value = S.seed;
+  if (!document.getElementById('lock').checked) randomiseSettings();
+  fit();
+  compose();
+  redraw();
+}
+
+function randomiseSettings() {
+  const rnd = mulberry32(S.seed ^ 0x9e3779b9);
+  for (const [id, [lo, hi]] of Object.entries(RANGES)) {
+    const step = +document.getElementById(id).step;
+    S[id] = Math.round((lo + rnd() * (hi - lo)) / step) * step;
+    syncSlider(id);
+  }
+  S.col = { ...PALETTES[Math.floor(rnd() * PALETTES.length)] };
+  syncColors();
+}
+
+function compose() {
+  const rnd = mulberry32(S.seed);
+  noiseSeed(S.seed);
+  S.R = S.sphere;
+  S.cx = S.W * (0.5 + (rnd() - 0.5) * 0.3);
+  S.cy = S.H * (0.5 + (rnd() - 0.3) * 0.3);
+  S.yaw = rnd() * Math.PI * 2;
+  S.pitch = (rnd() - 0.5) * 1.6;
+
+  // points evenly spread over the sphere (Fibonacci lattice)
+  const r = S.size, d = r * 2.15;
+  const n = Math.max(20, Math.round((4 * Math.PI * S.R * S.R) / (d * d * 0.866)));
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  let pts = [];
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (2 * (i + 0.5)) / n, rad = Math.sqrt(1 - y * y), th = i * golden;
+    const nn = [Math.cos(th) * rad, y, Math.sin(th) * rad];
+    const ref = Math.abs(y) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const t1 = unit(cross(nn, ref));
+    pts.push({ n: nn, h: nn.map((c) => c * S.R), t1, t2: cross(nn, t1), rank: rnd() });
+  }
+  pts.sort((a, b) => a.rank - b.rank);
+  pts = pts.slice(0, Math.round(pts.length * S.density));
+
+  // a few impacts around the sphere: each one blows circles away from it
+  const impacts = [];
+  for (let i = 0; i < S.impacts; i++) {
+    const a = rnd() * Math.PI * 2, dist = Math.sqrt(rnd()) * S.R * 0.9;
+    impacts.push({
+      x: S.cx + Math.cos(a) * dist, y: S.cy + Math.sin(a) * dist,
+      radius: S.R * (0.5 + rnd() * 0.9), power: 0.6 + rnd() * 1.4,
+    });
+  }
+
+  const shapes = [];
+  for (const p of pts) {
+    const facing = toCam(...p.n)[2];
+    const c = toCam(...p.h), s = persp(c[2]);
+    const sx = S.cx + c[0] * s, sy = S.cy + c[1] * s;
+    let off = [0, 0, 0], tail = [0, 0, 0];
+
+    let best = null, bd = Infinity;
+    for (const im of impacts) {
+      const dd = Math.hypot(sx - im.x, sy - im.y);
+      if (dd < bd) { bd = dd; best = im; }
+    }
+    const reach = 0.55 + rnd() * 0.9, rs = rnd(), jit = (rnd() - 0.5) * 2.4;
+    const push = 0.4 + Math.pow(rnd(), 3) * 3 * (S.fling / 2); // most shove a little, a few are flung across the poster
+    const Rr = best.radius * reach;
+    if (facing > -0.25 && bd < Rr) {
+      const nz = noise(p.h[0] * 0.012, p.h[1] * 0.012 + p.h[2] * 0.012, S.seed * 0.001);
+      const ang = Math.atan2(sy - best.y, sx - best.x) + (jit + (nz - 0.5) * 3) * 0.7;
+      const dist = (((Rr - bd) * push * best.power + 14 * rs) * (0.6 + nz * 0.8) * (0.6 + S.fling * 0.4)) / s;
+      off = toWorld(Math.cos(ang) * dist, Math.sin(ang) * dist, dist * 0.5);
+      // some thrown circles trail a tail back towards the sphere, which makes them a long capsule
+      const L = rnd() < S.caps ? S.caplen * (0.45 + rnd() * 0.55) : 0;
+      tail = off.map((v) => v * (1 - L));
+    } else {
+      tail = off;
+    }
+    shapes.push(buildShape(p, off, tail, facing));
+  }
+  S.shapes = shapes.sort((a, b) => a.z - b.z);
+  document.getElementById('status').textContent = `${S.shapes.length} circles, seed ${S.seed}`;
+}
+
+const f = (n) => Math.round(n * 100) / 100;
+
+function buildShape(p, off, tail, facing) {
+  const r = S.size;
+  const hx = p.h[0] + off[0], hy = p.h[1] + off[1], hz = p.h[2] + off[2];
+  const c = toCam(hx, hy, hz), s = persp(c[2]);
+  const X = S.cx + c[0] * s, Y = S.cy + c[1] * s, rr = r * s;
+  const tc = toCam(p.h[0] + tail[0], p.h[1] + tail[1], p.h[2] + tail[2]), ts = persp(tc[2]);
+  const TX = S.cx + tc[0] * ts, TY = S.cy + tc[1] * ts;
+  const t = Math.min(1, Math.max(0, (facing + 0.2) / 0.55));
+  const alpha = 0.12 + 0.88 * t * t * (3 - 2 * t);
+  let d;
+  if (Math.hypot(X - TX, Y - TY) > rr * 0.5) d = stadiumD(X, Y, TX, TY, rr);
+  else {
+    const pa = toCam(hx + r * p.t1[0], hy + r * p.t1[1], hz + r * p.t1[2]), sa = persp(pa[2]);
+    const pb = toCam(hx + r * p.t2[0], hy + r * p.t2[1], hz + r * p.t2[2]), sb = persp(pb[2]);
+    d = ellipseD(X, Y, S.cx + pa[0] * sa - X, S.cy + pa[1] * sa - Y, S.cx + pb[0] * sb - X, S.cy + pb[1] * sb - Y);
+  }
+  return { d, alpha: f(alpha), z: c[2] };
+}
+
+// ellipse centred on (x, y) with conjugate semi-axes a and b (screen vectors), as four cubic Béziers
+function ellipseD(x, y, ax, ay, bx, by) {
+  const k = 0.5523;
+  const P0 = [x + ax, y + ay], P1 = [x + bx, y + by], P2 = [x - ax, y - ay], P3 = [x - bx, y - by];
+  const pt = (q) => f(q[0]) + ' ' + f(q[1]);
+  const add = (q, vx, vy, m) => [q[0] + vx * m, q[1] + vy * m];
+  return `M${pt(P0)}` +
+    `C${pt(add(P0, bx, by, k))} ${pt(add(P1, ax, ay, k))} ${pt(P1)}` +
+    `C${pt(add(P1, ax, ay, -k))} ${pt(add(P2, bx, by, k))} ${pt(P2)}` +
+    `C${pt(add(P2, bx, by, -k))} ${pt(add(P3, ax, ay, -k))} ${pt(P3)}` +
+    `C${pt(add(P3, ax, ay, k))} ${pt(add(P0, bx, by, -k))} ${pt(P0)}Z`;
+}
+
+// capsule between two points, with a line through the middle
+function stadiumD(x, y, tx, ty, r) {
+  const dx = x - tx, dy = y - ty, len = Math.hypot(dx, dy);
+  const nx = (-dy / len) * r, ny = (dx / len) * r;
+  const A = [tx + nx, ty + ny], B = [x + nx, y + ny], C = [x - nx, y - ny], D = [tx - nx, ty - ny];
+  return `M${f(A[0])} ${f(A[1])}L${f(B[0])} ${f(B[1])}A${f(r)} ${f(r)} 0 0 0 ${f(C[0])} ${f(C[1])}` +
+    `L${f(D[0])} ${f(D[1])}A${f(r)} ${f(r)} 0 0 0 ${f(A[0])} ${f(A[1])}Z` +
+    (len > r * 0.6 ? `M${f(tx)} ${f(ty)}L${f(x)} ${f(y)}` : '');
+}
+
+/* ---------- export ---------- */
+
+function saveSvg() {
+  const inW = S.W / UNITS_PER_INCH, inH = S.H / UNITS_PER_INCH;
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${inW}in" height="${inH}in" viewBox="0 0 ${S.W} ${S.H}">` +
+    `<rect width="${S.W}" height="${S.H}" fill="${S.col.bg}"/>` +
+    `<g fill="none" stroke="${S.col.fill}" stroke-width="${S.thick}" stroke-linejoin="round">` +
+    S.shapes.map((sh) => `<path d="${sh.d}" stroke-opacity="${sh.alpha}"/>`).join('') + '</g></svg>';
+  deliverSvg(`composition-${S.seed}-${inW}x${inH}.svg`, svg);
+}
+
+// Inside Claude's artifact viewer plain downloads are blocked, so use its downloads capability when present.
+async function deliverSvg(filename, svg) {
+  try {
+    const dl = window.claude && (await window.claude.use('downloads'));
+    if (dl) {
+      await dl.save({ filename, data: svg });
+      return;
+    }
+  } catch (err) {
+    if (err && err.code === 'declined') return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- GUI ---------- */
+
+const $ = (id) => document.getElementById(id);
+
+function syncSlider(id) {
+  const el = $(id);
+  el.value = S[id];
+  el.parentElement.querySelector('output').textContent = el.value;
+}
+
+function syncColors() {
+  document.querySelectorAll('#colors .color').forEach((row) => {
+    const [picker, text] = row.querySelectorAll('input');
+    const v = S.col[row.dataset.key];
+    picker.value = v;
+    text.value = v;
+  });
+}
+
+function buildGui() {
+  $('gen').addEventListener('click', (e) => { generate(false); e.target.blur(); });
+  $('seed').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { generate(true); e.target.blur(); } // type a seed and press Enter to rebuild it
+  });
+  $('save').addEventListener('click', (e) => { saveSvg(); e.target.blur(); });
+  $('lock').addEventListener('change', (e) => e.target.blur());
+  const setOrientation = (portrait) => {
+    S.portrait = portrait;
+    $('o-portrait').classList.toggle('on', portrait);
+    $('o-landscape').classList.toggle('on', !portrait);
+    fit();
+    compose();
+    redraw();
+  };
+  $('o-portrait').addEventListener('click', (e) => { setOrientation(true); e.target.blur(); });
+  $('o-landscape').addEventListener('click', (e) => { setOrientation(false); e.target.blur(); });
+
+  // changing a slider rebuilds the same seed with the new settings
+  for (const id of Object.keys(RANGES)) {
+    $(id).addEventListener('input', () => {
+      S[id] = +$(id).value;
+      $(id).parentElement.querySelector('output').textContent = $(id).value;
+      compose();
+      redraw();
+    });
+    syncSlider(id);
+  }
+
+  const box = $('colors');
+  for (const [key, label] of COLOR_FIELDS) {
+    const row = document.createElement('div');
+    row.className = 'color';
+    row.dataset.key = key;
+    row.innerHTML = `<span>${label}</span><input type="color"><input type="text" maxlength="7" spellcheck="false">`;
+    const [picker, text] = row.querySelectorAll('input');
+    const apply = (hex) => { S.col[key] = hex; picker.value = hex; text.value = hex; redraw(); };
+    picker.addEventListener('input', () => apply(picker.value));
+    text.addEventListener('input', () => {
+      let t = text.value.trim();
+      if (t && t[0] !== '#') t = '#' + t;
+      if (/^#[0-9a-fA-F]{6}$/.test(t)) apply(t.toLowerCase());
+    });
+    box.appendChild(row);
+  }
+  syncColors();
+}
+
+/* ---------- utils ---------- */
+
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+</script>
+</body>
+</html>
