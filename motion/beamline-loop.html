@@ -156,6 +156,7 @@
 </defs>
 <g clip-path="url(#frame)">
 <rect x="-108" y="-192" width="1296" height="2304" fill="rgb(61.569214%, 39.99939%, 21.960449%)" fill-opacity="1"/><path fill="none" stroke-width="2" stroke-linecap="butt" stroke-linejoin="miter" stroke="rgb(72.941589%, 87.843323%, 80.000305%)" stroke-opacity="1" stroke-miterlimit="4" d="M 0 0 L 0 1920 " transform="matrix(1, 0, 0, -1, 171, 1920)"/>
+<g id="dots"></g>
 <g id="bands"></g>
 </g>
 </svg>
@@ -234,8 +235,26 @@ function motion(from, tseg) {
   return { y, extra };
 }
 
+// ---- dots: random, non-overlapping, may bleed off the frame; grow in, rest, shrink out ----
+const DOTS = {"r": 73, "color": "#ff8242", "grow": 1.0, "dots": [{"x": 487.81, "y": 31.02, "u": 0.1797, "hold": 2.91}, {"x": 965.79, "y": 127.06, "u": 0.6211, "hold": 3.869}, {"x": 106.76, "y": 146.38, "u": 0.3279, "hold": 2.472}, {"x": 701.65, "y": 293.24, "u": 0.9092, "hold": 3.428}, {"x": 299.53, "y": 498.91, "u": 0.6407, "hold": 3.504}, {"x": 16.71, "y": 526.93, "u": 0.2081, "hold": 2.164}, {"x": 1056.79, "y": 664.95, "u": 0.911, "hold": 2.343}, {"x": 788.07, "y": 739.85, "u": 0.3906, "hold": 3.716}, {"x": 504.41, "y": 741.73, "u": 0.0018, "hold": 2.07}, {"x": -13.7, "y": 802.52, "u": 0.7609, "hold": 2.514}, {"x": 938.18, "y": 998.95, "u": 0.3362, "hold": 4.071}, {"x": 634.92, "y": 1016.16, "u": 0.9016, "hold": 4.07}, {"x": 306.22, "y": 1018.6, "u": 0.5229, "hold": 2.99}, {"x": 156.83, "y": 1266.75, "u": 0.2505, "hold": 2.563}, {"x": 563.74, "y": 1296.83, "u": 0.6904, "hold": 4.029}, {"x": 843.83, "y": 1303.32, "u": 0.3426, "hold": 2.654}, {"x": 347.97, "y": 1471.35, "u": 0.9224, "hold": 2.725}, {"x": 1003.75, "y": 1554.71, "u": 0.6418, "hold": 3.967}, {"x": 21.65, "y": 1589.74, "u": 0.2582, "hold": 3.611}, {"x": 517.78, "y": 1719.47, "u": 0.8586, "hold": 3.951}, {"x": 857.13, "y": 1795.39, "u": 0.6026, "hold": 4.108}, {"x": 193.37, "y": 1866.16, "u": 0.1046, "hold": 2.949}]};
+const dotEls = DOTS.dots.map(d => {
+  const c = document.createElementNS(SVGNS, 'circle');
+  c.setAttribute('cx', d.x); c.setAttribute('cy', d.y); c.setAttribute('r', 0);
+  c.setAttribute('fill', DOTS.color);
+  document.getElementById('dots').appendChild(c);
+  return c;
+});
+function dotScale(d, t) {
+  const g = DOTS.grow, tau = (((t - d.u * DURATION) % DURATION) + DURATION) % DURATION;
+  if (tau < g) return ease(tau / g);
+  if (tau < g + d.hold) return 1;
+  if (tau < 2 * g + d.hold) return 1 - ease((tau - g - d.hold) / g);
+  return 0;
+}
+
 function render(t) {
   t = ((t % DURATION) + DURATION) % DURATION;
+  DOTS.dots.forEach((d, i) => dotEls[i].setAttribute('r', (DOTS.r * dotScale(d, t)).toFixed(3)));
   const k = Math.floor(t / SEG), tseg = t - k * SEG;
   visuals.forEach((v, b) => {
     const s = ((b - k) % 3 + 3) % 3;
