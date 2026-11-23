@@ -136,9 +136,11 @@
         // box
         var box = newShape(comp, "Box", ctrl);
         var bv = group(vectors(box), "Box");
+        // (set the expression before adding the fill: adding a property to a group
+        //  invalidates references to its existing children in AE scripting)
         var r = rect(bv, [W, b.bot - b.top], [W / 2, (b.top + b.bot) / 2 - c]);
-        fill(bv, b.fill);
         r.property("ADBE Vector Rect Size").expression = leadExpr(n) + "[" + W + ", " + (b.bot - b.top) + " + G]";
+        fill(bv, b.fill);
 
         // rules that ride with the first line (top) and the last baseline (bottom)
         var rt = newShape(comp, "Rules - top", ctrl);
